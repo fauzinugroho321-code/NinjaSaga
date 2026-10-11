@@ -363,8 +363,107 @@ function sudahPunya(c, id) {
   return !!bag && (c[bag] || []).map(String).includes(no);
 }
 
+/* Isi paket dibaca otomatis dari swf panelnya kalau belum ada di PAKET_KLAIM.
+ *
+ * Tiap popup_4th_claim_code_pNN.swf (kelas Anni4_ClaimCode) menyimpan isinya
+ * di Anni4_ClaimCode.show:
+ *     if (CHAR_GENDER == 0) ClaimRewardArr = ['set_..','wpn_..',...];   // cowok
+ *     else                  ClaimRewardArr = ['set_..','wpn_..',...];   // cewek
+ * Dalam bytecode itu dua deret  pushstring ... newarray N  yang berdekatan.
+ * Server mencari berkas panel yang memuat nama servisnya, lalu mengambil
+ * pasangan larik tersebut. Hasilnya disimpan di memori (sekali baca).
+ */
+const zlib = require('zlib');
+const POLA_ID_HADIAH = /^(set|wpn|hair|back|acsy|skill|pet|item|essence|material)_\d+$/;
+const _cachePaketSwf = {};
+
+function abcDariSwf(buf) {
+  const sig = buf.toString('latin1', 0, 3);
+  let raw;
+  if (sig === 'FWS') raw = buf;
+  else if (sig === 'CWS') raw = Buffer.concat([buf.subarray(0, 8), zlib.inflateSync(buf.subarray(8))]);
+  else return [];
+  const nbits = raw[8] >> 3;
+  let p = 8 + Math.ceil((5 + nbits * 4) / 8) + 4;
+  const out = [];
+  while (p + 2 <= raw.length) {
+    const th = raw.readUInt16LE(p); p += 2;
+    const kode = th >> 6; let pj = th & 0x3f;
+    if (pj === 0x3f) { pj = raw.readUInt32LE(p); p += 4; }
+    if (kode === 82) { const z = raw.indexOf(0, p + 4); out.push(raw.subarray(z + 1, p + pj)); }
+    else if (kode === 72) out.push(raw.subarray(p, p + pj));
+    p += pj;
+    if (kode === 0) break;
+  }
+  return out;
+}
+
+function stringPoolAbc(abc) {
+  let p = 4;
+  const u30 = () => { let v = 0, s = 0, b; do { b = abc[p++]; v |= (b & 0x7f) << s; s += 7; } while (b & 0x80 && s < 35); return v >>> 0; };
+  let n = u30(); for (let i = 1; i < n; i++) u30();          // int
+  n = u30(); for (let i = 1; i < n; i++) u30();              // uint
+  n = u30(); p += Math.max(0, n - 1) * 8;                    // double
+  n = u30(); const str = [''];
+  for (let i = 1; i < n; i++) { const l = u30(); str.push(abc.toString('utf8', p, p + l)); p += l; }
+  return str;
+}
+
+function larikIdDalamAbc(abc) {
+  const str = stringPoolAbc(abc);
+  const hasil = [];
+  for (let i = 0; i < abc.length; i++) {
+    if (abc[i] !== 0x2c) continue;
+    let p = i; const isi = [];
+    while (abc[p] === 0x2c) {
+      let q = p + 1, v = 0, s = 0, b;
+      do { b = abc[q++]; v |= (b & 0x7f) << s; s += 7; } while (b & 0x80 && s < 35);
+      const t = str[v];
+      if (typeof t !== 'string' || !POLA_ID_HADIAH.test(t)) break;
+      isi.push(t); p = q;
+    }
+    if (isi.length && abc[p] === 0x56 && abc[p + 1] === isi.length) {
+      hasil.push({ awal: i, akhir: p + 2, isi });
+      i = p + 1;
+    }
+  }
+  return hasil;
+}
+
+function paketDariSwf(servis) {
+  if (servis in _cachePaketSwf) return _cachePaketSwf[servis];
+  let hasil = null;
+  try {
+    const dir = path.join(WEB_ROOT, 'cdn', 'swf', 'latest', 'swf', 'panels');
+    const daftar = fs.readdirSync(dir).filter(f => /^popup_4th_claim_code_p\d+\.swf$/i.test(f));
+    for (const f of daftar) {
+      const abcs = abcDariSwf(fs.readFileSync(path.join(dir, f)));
+      const abc = abcs.find(a => a.includes(Buffer.from(servis)));
+      if (!abc) continue;
+      const lar = larikIdDalamAbc(abc);
+      for (let k = 0; k + 1 < lar.length; k++) {
+        if (lar[k + 1].awal - lar[k].akhir <= 40) {
+          hasil = { nama: servis.replace(/^SpecialReward\.claim/, '').replace(/Package$/, ' Package'),
+                    g0: lar[k].isi, g1: lar[k + 1].isi, dari: f };
+          break;
+        }
+      }
+      if (!hasil && lar.length) {
+        const terakhir = lar[lar.length - 1].isi;
+        hasil = { nama: servis.replace(/^SpecialReward\.claim/, '').replace(/Package$/, ' Package'),
+                  g0: terakhir, g1: terakhir, dari: f };
+      }
+      if (hasil) break;
+    }
+  } catch (e) { log('   !! baca isi paket dari swf gagal: ' + e.message); }
+  if (hasil) log('   isi ' + hasil.nama + ' dibaca dari ' + hasil.dari + ': ' + hasil.g0.join(', ') +
+                 ' | cewek: ' + hasil.g1.join(', '));
+  _cachePaketSwf[servis] = hasil;
+  return hasil;
+}
+
 function klaimPaket(servis) {
-  const p = PAKET_KLAIM[servis];
+  const p = PAKET_KLAIM[servis] || paketDariSwf(servis);
   const c = chars.characterById(chars.getActiveId()) || chars.firstCharacter();
   if (!p) {
     log('   paket belum dikenal: ' + servis);
