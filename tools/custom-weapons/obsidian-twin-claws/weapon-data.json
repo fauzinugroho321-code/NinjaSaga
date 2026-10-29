@@ -1,0 +1,33 @@
+{
+  "id": "wpn9000",
+  "name": "Obsidian Twin Claws",
+  "gold": 0,
+  "crystal": 0,
+  "prestige": 0,
+  "pvp_point": 0,
+  "merit": 0,
+  "sellable": false,
+  "damage": 180,
+  "rarity": 5,
+  "swfName": "wpn_9000",
+  "description": "A matching pair of obsidian claws. One blade follows each hand.",
+  "level": 20,
+  "premium": false,
+  "agility": 0,
+  "dodge": 0,
+  "critical": 0,
+  "vendor": false,
+  "animation": "attack_10",
+  "expiry_hour": 0,
+  "expiry_group_id": 0,
+  "effect": [],
+  "extra_effect": null,
+  "forge_material": {
+    "material": ""
+  },
+  "forge_base": 0,
+  "forge_group_id": 0,
+  "development": 0,
+  "relate_set": "",
+  "hash": ""
+}

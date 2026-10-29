@@ -1,0 +1,330 @@
+﻿tabel,id,nama,path_di_swf,development,klasifikasi,catatan
+WEAPON,wpn153,wpn_153,items/wpn_153.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn277,abc,items/wpn_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn278,abc,items/wpn_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn279,abc,items/wpn_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn280,abc,items/wpn_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn281,abc,items/wpn_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn282,abc,items/wpn_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn283,abc,items/wpn_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn310,310,items/wpn_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn311,310,items/wpn_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn312,310,items/wpn_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn313,310,items/wpn_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn314,310,items/wpn_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn315,310,items/wpn_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn316,310,items/wpn_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn317,310,items/wpn_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn318,310,items/wpn_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn319,310,items/wpn_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn320,310,items/wpn_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn321,310,items/wpn_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn322,310,items/wpn_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn323,310,items/wpn_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn340,Murasame,items/wpn_340.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn358,wpn_358,items/wpn_358.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn359,wpn_359,items/wpn_359.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn360,wpn_360,items/wpn_360.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn361,wpn_361,items/wpn_361.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn362,wpn_362,items/wpn_362.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn363,wpn_363,items/wpn_363.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn364,wpn_364,items/wpn_364.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn365,wpn_365,items/wpn_365.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn376,wpn_376,items/wpn_376.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn415,wpn_415,items/wpn_415.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn454,wpn_454,items/wpn_454.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn592,wpn_592,items/wpn_592.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn652,wpn_652,items/wpn_652.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn675,Ninja Student Ninjato,items/wpn_675.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn678,wpn_678,items/wpn_678.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn680,wpn_680,items/wpn_680.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn681,wpn_681,items/wpn_681.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn682,wpn_682,items/wpn_682.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn683,wpn_683,items/wpn_683.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn684,wpn_684,items/wpn_684.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn685,wpn_685,items/wpn_685.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn686,wpn_686,items/wpn_686.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn687,wpn_687,items/wpn_687.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn688,wpn_688,items/wpn_688.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn689,wpn_689,items/wpn_689.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn690,wpn_690,items/wpn_690.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn691,wpn_691,items/wpn_691.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn692,wpn_692,items/wpn_692.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn693,wpn_693,items/wpn_693.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn694,wpn_694,items/wpn_694.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn695,wpn_695,items/wpn_695.swf,0,PLACEHOLDER_GM,Nama dummy/GM/coming soon; belum terbukti tersedia untuk pemain.
+WEAPON,wpn697,wpn_697,items/wpn_697.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn698,wpn_698,items/wpn_698.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn699,wpn_699,items/wpn_699.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn700,wpn_700,items/wpn_700.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn701,wpn_701,items/wpn_701.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn702,wpn_702,items/wpn_702.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn703,wpn_703,items/wpn_703.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn704,wpn_704,items/wpn_704.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn705,wpn_705,items/wpn_705.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn706,wpn_706,items/wpn_706.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn707,wpn_707,items/wpn_707.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn708,wpn_708,items/wpn_708.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn709,wpn_709,items/wpn_709.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn710,wpn_710,items/wpn_710.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn711,wpn_711,items/wpn_711.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn712,wpn_712,items/wpn_712.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn713,wpn_713,items/wpn_713.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn714,wpn_714,items/wpn_714.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn715,wpn_715,items/wpn_715.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn716,wpn_716,items/wpn_716.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn717,wpn_717,items/wpn_717.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn718,wpn_718,items/wpn_718.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn719,wpn_719,items/wpn_719.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn720,wpn_720,items/wpn_720.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn721,wpn_721,items/wpn_721.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn722,wpn_722,items/wpn_722.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn723,wpn_723,items/wpn_723.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn724,wpn_724,items/wpn_724.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn725,wpn_725,items/wpn_725.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn726,wpn_726,items/wpn_726.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn727,wpn_727,items/wpn_727.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn728,wpn_728,items/wpn_728.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn729,wpn_729,items/wpn_729.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn730,wpn_730,items/wpn_730.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn731,wpn_731,items/wpn_731.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn732,wpn_732,items/wpn_732.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn733,wpn_733,items/wpn_733.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn734,wpn_734,items/wpn_734.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn735,wpn_735,items/wpn_735.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn736,wpn_736,items/wpn_736.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn737,wpn_737,items/wpn_737.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn738,wpn_738,items/wpn_738.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn739,wpn_739,items/wpn_739.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn740,wpn_740,items/wpn_740.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn741,wpn_741,items/wpn_741.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn742,wpn_742,items/wpn_742.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn743,wpn_743,items/wpn_743.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn744,wpn_744,items/wpn_744.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn745,wpn_745,items/wpn_745.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn746,wpn_746,items/wpn_746.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn747,wpn_747,items/wpn_747.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn748,wpn_748,items/wpn_748.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn749,wpn_749,items/wpn_749.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn750,wpn_750,items/wpn_750.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn751,wpn_751,items/wpn_751.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn752,wpn_752,items/wpn_752.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn753,wpn_753,items/wpn_753.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn755,wpn_755,items/wpn_755.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn756,wpn_756,items/wpn_756.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn757,wpn_757,items/wpn_757.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn758,wpn_758,items/wpn_758.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn759,wpn_759,items/wpn_759.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn760,wpn_760,items/wpn_760.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn761,wpn_761,items/wpn_761.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn762,wpn_762,items/wpn_762.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn763,wpn_763,items/wpn_763.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn764,wpn_764,items/wpn_764.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn766,wpn_766,items/wpn_766.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn767,wpn_767,items/wpn_767.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn768,wpn_768,items/wpn_768.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn775,Fire Star Windmill Shuriken ,items/wpn_775.swf,0,MODEL_TIDAK_ADA,"Definisi ada, berkas tidak ada. Belum diuji melalui menu."
+WEAPON,wpn812,Dragon Year Crescent Blade,items/wpn_812.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn856,,items/wpn_856.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn857,,items/wpn_857.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn858,,items/wpn_858.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn859,,items/wpn_859.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn860,,items/wpn_860.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn887,887,items/wpn_887.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn888,888,items/wpn_888.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn889,889,items/wpn_889.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn890,889,items/wpn_889.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn891,891,items/wpn_891.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn892,892,items/wpn_892.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn898,Tsuchiyaki Blade,items/wpn_898.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn906,lock,items/wpn_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn1011,S19 Ancient Ultimate Blade Gawari,items/wpn_1011.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn1012,S20 Ancient Ultimate Claw Kurokiba,items/wpn_1012.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn1013,S21 Ancient Ultimate Spear Kiwa,items/wpn_1013.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn1232,Game Hammer,items/wpn_1232.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn1411,null,items/wpn_1411.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn1670,Blast Rip,items/wpn_1670.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+WEAPON,wpn9999999,GM Weapon,items/wpn_9999999.swf,0,PLACEHOLDER_GM,Nama dummy/GM/coming soon; belum terbukti tersedia untuk pemain.
+SKILL,skill657,God Seal Surgery,skills/skill_657.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+SKILL,skill929,coming coon,skills/skill_929.swf,0,PLACEHOLDER_GM,Nama dummy/GM/coming soon; belum terbukti tersedia untuk pemain.
+BODY_SET_BOY,set466,466,items/set_234_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set467,467,items/set_235_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set468,468,items/set_236_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set469,469,items/set_237_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set470,470,items/set_238_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set471,471,items/set_239_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set472,472,items/set_240_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set473,473,items/set_241_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set474,474,items/set_242_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set475,475,items/set_243_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set476,476,items/set_244_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set477,477,items/set_245_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set478,478,items/set_246_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set479,479,items/set_247_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set480,480,items/set_248_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set481,481,items/set_249_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set566,566,items/set_311_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set567,567,items/set_312_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set568,568,items/set_313_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set569,569,items/set_314_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set570,570,items/set_315_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set571,571,items/set_316_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set572,572,items/set_317_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set573,573,items/set_318_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set574,574,items/set_319_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set575,575,items/set_320_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set576,576,items/set_321_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set577,577,items/set_322_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set578,578,items/set_323_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set579,579,items/set_324_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set581,581,items/set_326_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set582,582,items/set_327_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set583,583,items/set_328_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set584,584,items/set_329_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set585,585,items/set_330_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set586,586,items/set_331_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set587,587,items/set_332_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set594,594,items/set_335_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set595,595,items/set_336_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set596,596,items/set_337_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set597,597,items/set_338_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set604,604,items/set_340_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set605,605,items/set_341_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set606,606,items/set_342_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set607,607,items/set_343_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set808,808,items/set_396_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set809,809,items/set_397_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set811,811,items/set_399_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set968,set_524_0,items/set_524_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set969,set_525_0,items/set_525_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set978,set_529_0,items/set_529_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set1026,Maroon Chinese Style Wear,items/set_553_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set1027,1027,items/set_554_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set1028,1028,items/set_555_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set1029,Miner Wear,items/set_556_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set1030,1030,items/set_557_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set1031,1031,items/set_558_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set1174,New Year Fighter Suit,items/set_630_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set1316,Enjin Armor,items/set_701_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set1330,Tail Beast Hunting Suit,items/set_708_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set1612,Genin Fuku,items/set_854_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set1614,Outdoor Fuku,items/set_855_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set1844,Azure Dragon Armor Set,items/set_970_0.swf,0,MODEL_TIDAK_ADA,"Definisi ada, berkas tidak ada. Belum diuji melalui menu."
+BODY_SET_BOY,set2644,Legendary Delver Clothings,items/set_1370_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set2646,Black Shinobi Outfit,items/set_1371_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set2648,White Shinobi Outfit,items/set_1372_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set2650,Easter Event 2019,items/set_1373_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_BOY,set2652,Easter Event 2019,items/set_1373_0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set106,set_75_1,items/set_75_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set107,set_76_1,items/set_76_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set108,set_77_1,items/set_77_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set109,set_78_1,items/set_78_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set110,set_79_1,items/set_79_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set389,Miner Wear,items/set_234_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set390,390,items/set_235_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set391,391,items/set_236_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set392,392,items/set_237_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set393,393,items/set_238_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set394,394,items/set_239_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set395,395,items/set_240_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set396,396,items/set_241_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set398,398,items/set_243_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set399,399,items/set_244_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set400,400,items/set_245_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set401,401,items/set_246_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set402,402,items/set_247_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set403,403,items/set_248_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set404,404,items/set_249_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set465,465,items/set_310_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set542,542,items/set_311_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set544,544,items/set_313_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set545,545,items/set_314_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set546,546,items/set_315_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set547,547,items/set_316_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set548,548,items/set_317_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set549,549,items/set_318_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set550,550,items/set_319_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set551,551,items/set_320_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set552,552,items/set_321_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set553,553,items/set_322_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set554,554,items/set_323_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set555,555,items/set_324_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set557,557,items/set_326_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set558,558,items/set_327_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set559,559,items/set_328_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set560,560,items/set_329_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set561,561,items/set_330_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set562,562,items/set_331_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set563,563,items/set_332_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set590,590,items/set_335_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set591,591,items/set_336_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set592,592,items/set_337_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set593,593,items/set_338_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set600,600,items/set_340_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set601,601,items/set_341_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set602,602,items/set_342_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set603,603,items/set_343_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set660,660,items/set_396_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set661,661,items/set_397_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set663,663,items/set_399_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set972,set_524_1,items/set_524_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set973,set_525_1,items/set_525_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set979,set_529_1,items/set_529_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set1175,New Year Fighter Suit,items/set_630_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set1317,Enjin Armor,items/set_701_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set1331,Tail Beast Hunting Suit,items/set_708_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set1613,Genin Fuku,items/Set_854_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set1615,Outdoor Fuku,items/set_855_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set1845,Azure Dragon Armor Set,items/set_970_1.swf,0,MODEL_TIDAK_ADA,"Definisi ada, berkas tidak ada. Belum diuji melalui menu."
+BODY_SET_GIRL,set2645,Legendary Delver Clothings,items/set_1370_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set2647,Black Shinobi Outfit,items/set_1371_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set2649,White Shinobi Outfit,items/set_1372_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set2651,Easter Event 2019,items/set_1373_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BODY_SET_GIRL,set2653,Easter Event 2019,items/set_1373_1.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+ACCESSORY,acsy26,Devil Eye Ring,items/acsy_26.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+ACCESSORY,acsy27,Discovery Bracelet,items/acsy_27.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BLOODLINE_SKILL,bloodline_skill1023,Eye of Mirror,skills/skill_1023.swf,0,PASIF,Efek berbasis data; tidak dianggap animasi serangan hilang.
+BLOODLINE_SKILL,bloodline_skill1024,Crescent Eye of Mirror ,skills/skill_1024.swf,0,PASIF,Efek berbasis data; tidak dianggap animasi serangan hilang.
+BLOODLINE_SKILL,bloodline_skill1025, Eight Extremities,skills/skill_1025.swf,0,PASIF,Efek berbasis data; tidak dianggap animasi serangan hilang.
+BLOODLINE_SKILL,bloodline_skill1026,Eight Extremities Strengthen,skills/skill_1026.swf,0,PASIF,Efek berbasis data; tidak dianggap animasi serangan hilang.
+BLOODLINE_SKILL,bloodline_skill1027,Dark Eye,skills/skill_1027.swf,0,PASIF,Efek berbasis data; tidak dianggap animasi serangan hilang.
+BLOODLINE_SKILL,bloodline_skill1028,Meridian Search,skills/skill_1028.swf,0,PASIF,Efek berbasis data; tidak dianggap animasi serangan hilang.
+BLOODLINE_SKILL,bloodline_skill1029,Meridian Strengthen ,skills/skill_1029.swf,0,PASIF,Efek berbasis data; tidak dianggap animasi serangan hilang.
+BLOODLINE_SKILL,bloodline_skill1040,Acupuncture: Needle Barrage,skills/skill_1040.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BLOODLINE_SKILL,bloodline_skill1030,Soul of Onmyouji ,skills/skill_1030.swf,0,PASIF,Efek berbasis data; tidak dianggap animasi serangan hilang.
+BLOODLINE_SKILL,bloodline_skill1031,Soul of Samurai,skills/skill_1031.swf,0,PASIF,Efek berbasis data; tidak dianggap animasi serangan hilang.
+BLOODLINE_SKILL,bloodline_skill1032,Demon Song,skills/skill_1032.swf,0,PASIF,Efek berbasis data; tidak dianggap animasi serangan hilang.
+BLOODLINE_SKILL,bloodline_skill1033,Explosive Lava,skills/skill_1033.swf,0,PASIF,Efek berbasis data; tidak dianggap animasi serangan hilang.
+BLOODLINE_SKILL,bloodline_skill1034,Silhouette Capture,skills/skill_1034.swf,0,PASIF,Efek berbasis data; tidak dianggap animasi serangan hilang.
+BLOODLINE_SKILL,bloodline_skill1035,Nature Power,skills/skill_1035.swf,0,PASIF,Efek berbasis data; tidak dianggap animasi serangan hilang.
+BLOODLINE_SKILL,bloodline_skill1053,1053,skills/1053.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BLOODLINE_SKILL,bloodline_skill1054,1054,skills/1054.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BLOODLINE_SKILL,bloodline_skill1055,1055,skills/1055.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+BLOODLINE_SKILL,bloodline_skill1056,1056,skills/1056.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+SENJUTSU_SKILL,senjutsu_skill3501,,skills/0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+SENJUTSU_SKILL,senjutsu_skill3502,,skills/0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+SENJUTSU_SKILL,senjutsu_skill3503,,skills/0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+SENJUTSU_SKILL,senjutsu_skill3504,,skills/0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+SENJUTSU_SKILL,senjutsu_skill3505,,skills/0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+SENJUTSU_SKILL,senjutsu_skill3506,,skills/0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+SENJUTSU_SKILL,senjutsu_skill3507,,skills/0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+SENJUTSU_SKILL,senjutsu_skill3508,,skills/0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+SENJUTSU_SKILL,senjutsu_skill3509,,skills/0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+SENJUTSU_SKILL,senjutsu_skill3510,,skills/0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+SENJUTSU_SKILL,senjutsu_skill3511,,skills/0.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+ENEMY,enemy216,Random Player Character,enemies/ene_216.swf,0,PERLU_KONTEKS,Random Player Character: model dapat dibentuk dari data karakter; belum dipastikan perlu SWF terpisah.
+ENEMY,enemy217,Random Player Character,enemies/ene_217.swf,0,PERLU_KONTEKS,Random Player Character: model dapat dibentuk dari data karakter; belum dipastikan perlu SWF terpisah.
+ENEMY,enemy218,Random Player Character,enemies/ene_218.swf,0,PERLU_KONTEKS,Random Player Character: model dapat dibentuk dari data karakter; belum dipastikan perlu SWF terpisah.
+ENEMY,enemy344,Rebound,enemies/ene_344.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+ENEMY,enemy1233,123,enemies/123.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+ENEMY,enemy999999,Jurojin,enemies/ene_415.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+ENEMY,enemy9999997,Jurojin,enemies/ene_415.swf,1,DEVELOPMENT_PLACEHOLDER,Entri pengembangan; bukan bukti konten rilis yang perlu dipulihkan.
+LOADER,Panel_tokenBank,,panels/Panel_tokenBank.swf,,PERNAH_DIKLON,Log menunjukkan donor pengganti; aset asli masih tidak ada.
+LOADER,popup_reset_skill,,panels/popup_reset_skill.swf,,PERNAH_DIKLON,Log menunjukkan donor pengganti; aset asli masih tidak ada.
+LOADER,engage_2,,library/engage_2.swf,,PERNAH_DIKLON,Log menunjukkan donor pengganti; aset asli masih tidak ada.
+LOADER,npc_3,,npc/npc_3.swf,,PERNAH_DIKLON,Log menunjukkan donor pengganti; aset asli masih tidak ada.
+LOADER,npc_4,,npc/npc_4.swf,,PERNAH_DIKLON,Log menunjukkan donor pengganti; aset asli masih tidak ada.
+LOADER,npc_7,,npc/npc_7.swf,,PERNAH_DIKLON,Log menunjukkan donor pengganti; aset asli masih tidak ada.
+LOADER,npc_8,,npc/npc_8.swf,,PERNAH_DIKLON,Log menunjukkan donor pengganti; aset asli masih tidak ada.
+LOADER,npc_9,,npc/npc_9.swf,,PERNAH_DIKLON,Log menunjukkan donor pengganti; aset asli masih tidak ada.
+LOADER,npc_10,,npc/npc_10.swf,,PERNAH_DIKLON,Log menunjukkan donor pengganti; aset asli masih tidak ada.

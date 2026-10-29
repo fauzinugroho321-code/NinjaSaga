@@ -1,0 +1,24 @@
+# Local editor and operating-system files
+.DS_Store
+.gemini/
+__pycache__/
+*.py[cod]
+
+# Local credentials and environment overrides
+.env
+.env.*
+!.env.example
+
+# Character saves and runtime logs stay on this computer
+/server/characters.json
+/server/characters.json.bak
+/server/characters.backup-*.json
+/server/amf-log.txt
+/server/aset-hilang.txt
+*.log
+
+# Repair snapshots and generated backups
+/backups/
+*.backup-original
+*.before-*
+*.bak

@@ -26,12 +26,13 @@ diverifikasi ulang.
 7. [Langkah 5 — Konfigurasi Caddy](#langkah-5--konfigurasi-caddy)
 8. [Langkah 6 — Jalankan server](#langkah-6--jalankan-server)
 9. [Langkah 7 — Buka game](#langkah-7--buka-game)
-10. [Konfigurasi server](#konfigurasi-server)
-11. [Alat bantu aset SWF](#alat-bantu-aset-swf)
-12. [Patch SWF yang diterapkan](#patch-swf-yang-diterapkan)
-13. [Data karakter](#data-karakter)
-14. [Pemecahan masalah](#pemecahan-masalah)
-15. [Catatan pengembangan](#catatan-pengembangan)
+10. [Trainer & Dashboard Web](#trainer--dashboard-web)
+11. [Konfigurasi server](#konfigurasi-server)
+12. [Alat bantu aset SWF](#alat-bantu-aset-swf)
+13. [Patch SWF yang diterapkan](#patch-swf-yang-diterapkan)
+14. [Data karakter](#data-karakter)
+15. [Pemecahan masalah](#pemecahan-masalah)
+16. [Catatan pengembangan](#catatan-pengembangan)
 
 ---
 
@@ -291,6 +292,31 @@ Untuk memastikan versi mana yang benar-benar terkirim, lihat `amf-log.txt`:
 ```
 [aset] ninja_saga.swf terkirim, 2.870.608 byte
 ```
+
+---
+
+## Trainer & Dashboard Web
+
+Server dilengkapi **Web Trainer** bawaan yang bisa dibuka langsung di peramban saat server sedang berjalan:
+
+```
+http://127.0.0.1:8080/trainer
+```
+(atau lewat `https://ninjasaga.cc/trainer` jika Caddy aktif)
+
+Fitur yang tersedia di antarmuka Trainer:
+* **Impor Senjata Buatan Sendiri**: Buka `http://127.0.0.1:8080/trainer/weapons` atau tautan **Impor senjata buatan sendiri** di atas Trainer. Unggah PNG transparan, tentukan titik pegangan, nama, damage, level, ukuran dan gerakan serangan, lalu klik **Impor senjata**. Pilih karakter dan klik **Berikan ke karakter**, kemudian buka ulang game agar senjata muncul di **Gear → Weapons**. Mendukung gambar statis satu tangan; ID baru dibuat otomatis dan senjata kustom sebelumnya tetap tersedia. Java dan Python 3 diperlukan untuk proses impor. Petunjuk lengkap ada di `tools/custom-weapons/README.md`.
+* **Pilih Karakter**: Ganti karakter aktif dan lihat statistik langsung (Level, XP, Gold, Token, HP, CP, Agi).
+* **Saklar God Mode (ON/OFF)**: Menghidupkan atau mematikan kekebalan karakter pemain secara instan via in-place patch bytecode pada `code_library.swf`.
+* **Saklar One-Hit Kill (ON/OFF)**: Menghidupkan atau mematikan one-hit kill musuh.
+* **Atur Level Bebas (1–80)**: Slider level dengan sinkronisasi otomatis XP, HP, CP, Agility, dan Rank sesuai rumus resmi game agar Flash tidak macet/desync.
+* **Saldo & Mata Uang**: Tambah atau atur Gold & Token sesuka hati.
+* **Quick Unlocks**: Buka 9 Tailed Beasts sekaligus, buka Jutsu/Kinjutsu, pulihkan stamina klan, atau reset karakter ke Level 1 polosan.
+* **Mode Semua Talent**: Aktifkan untuk karakter yang dipilih, lalu muat ulang game. Saat bertarung, tombol **Next** pada lingkaran talent menampilkan halaman skill berikutnya (4 Bloodline + 4 Secret per halaman). Klik skill seperti biasa untuk memakainya; halaman terakhir kembali ke pertama. Mode ini tidak mengubah skill yang sudah dipelajari secara permanen.
+* **Halaman Menu Talent**: Saat Mode Semua Talent aktif, tombol **Next** di bagian atas menu Talent menampilkan kelompok talent lain (1 Bloodline + 2 Secret per halaman). Angka pada tombol menunjukkan halaman aktif; setelah halaman terakhir, tombol kembali ke halaman pertama. Pilih ikon atau tombol tambah pada halaman yang diinginkan untuk upgrade. Salinan SWF sebelum perubahan disimpan di `backups/bloodline_profile.before-menu-pages-20261025.swf`.
+
+> [!TIP]
+> Setelah mengubah saklar God Mode atau One-Hit Kill, muat ulang (refresh) game Flash agar berkas `code_library.swf` yang baru dimuat oleh pemutar.
 
 ---
 

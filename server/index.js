@@ -17,6 +17,29 @@ const { buildStub } = require('./stub');
 const chars = require('./chardata');
 const { cloneFrom } = require('./assetclone');
 const HARGA = require('./harga');   // id -> [gold, crystal]
+const trainer = require('./trainer');
+const localFriends = require('./local-friends');
+const scratchRewards = require('./scratch-rewards');
+const dailyRewards = require('./daily-rewards').createDailyRewards(chars);
+const eudemonGarden = require('./eudemon-garden').createEudemonGarden(chars);
+const { HAIR_DATA } = require('./hairdata');
+const PET_UPGRADES = {
+  "pet125": {"path":"125:40,136:9999","token":0,"material":""},
+  "pet126": {"path":"126:40,132:9999","token":0,"material":""},
+  "pet127": {"path":"127:40,133:9999","token":0,"material":""},
+  "pet128": {"path":"128:40,134:9999","token":0,"material":""},
+  "pet129": {"path":"129:40,135:9999","token":0,"material":""},
+  "pet132": {"path":"","token":0,"material":"829:10,830:3,836:20"},
+  "pet133": {"path":"","token":0,"material":"829:3,830:10,836:20"},
+  "pet134": {"path":"","token":0,"material":"831:10,832:3,836:20"},
+  "pet135": {"path":"","token":0,"material":"828:3,832:10,836:20"},
+  "pet136": {"path":"","token":0,"material":"828:12,831:8,836:25"},
+  "pet93": {"path":"93:20,97:9999","token":0,"material":""},
+  "pet94": {"path":"94:20,95:40,96:60","token":0,"material":""},
+  "pet95": {"path":"94:20,95:40,96:60","token":1500,"material":""},
+  "pet96": {"path":"94:20,95:40,96:60","token":2500,"material":""},
+  "pet97": {"path":"93:20,97:9999","token":1000,"material":""},
+};
 
 const PORT = 8080;
 const LOG = path.join(__dirname, 'amf-log.txt');
@@ -39,9 +62,12 @@ const ACCOUNT = {
   // accountTypeHash = SHA1(String(account_type)) yang dihitung klien sendiri,
   // jadi tidak ada yang perlu kita tandatangani untuk bagian ini.
   type: EMBLEM ? 2 : 1,
-  balance: 0,       // saldo token
+  balance: 10000000,       // saldo token
   sessionKey: 'localdevsession0001',
 };
+ACCOUNT.balance += chars.allCharacters().reduce((total, c) =>
+  total + (Number(c.scratchAccountDelta) || 0) - (Number(c.academyTokenSpent) || 0) -
+    (Number(c.sLevelTokenSpent) || 0) - (Number(c.utilityTokenSpent) || 0), 0);
 
 // Versi aset. Klien memetakan tiap entri ke AppData[type + "Ver"],
 // dan nilainya dipakai LANGSUNG sebagai nama folder di path:
@@ -60,6 +86,21 @@ let battleSeq = 0;
 
 function signAccount(a) {
   return sha1(`${a.id}|${a.type}|${a.balance}` + SALT + a.sessionKey);
+}
+
+function activeCharacter() {
+  return chars.characterById(chars.getActiveId()) || chars.firstCharacter();
+}
+
+function spendUtilityToken(cost) {
+  const amount = Number(cost);
+  if (!Number.isSafeInteger(amount) || amount < 0 || ACCOUNT.balance < amount) return false;
+  const changed = chars.updateCharacter(null, c => {
+    c.utilityTokenSpent = (Number(c.utilityTokenSpent) || 0) + amount;
+  });
+  if (!changed) return false;
+  ACCOUNT.balance -= amount;
+  return true;
 }
 
 function log(...a) {
@@ -118,12 +159,6 @@ function systemDataFields() {
 //         at MapMenu/countArrItems()
 // dan Gear tidak pernah selesai digambar (tab barang tampak kosong).
 //
-// Syarat batunya sudah diturunkan ke 0 di Popup_Gauntlet_menu.swf, jadi
-// tombol Implant hidup tanpa perlu satu batu pun. Nilai false di sini juga
-// MEMBERSIHKAN 1320 entri yang telanjur masuk saat login berikutnya.
-//
-// Setel true hanya kalau memakai Popup_Gauntlet_menu.swf yang asli.
-const BEKALI_BATU_GAUNTLET = false;
 const BATU_GAUNTLET = ['1144', '1145', '1146', '1147', '1148', '1150'];
 
 /* Mysterious Merchant / Legendary Skill Package
@@ -204,25 +239,9 @@ const PAKET_MERCHANT = {
  * tapi bisa aneh saat bertarung.
  * ==================================================================== */
 
-/* Eudemon Garden -- satu entri = satu "room" di panel OldHuntingHouse.
- *
- * BattleStatusResponse @90-233 memetakan tiap entri result.room jadi:
- *     boss    -> enemyId   LARIK id musuh, MAKSIMAL 2
- *                (panel cuma punya previewMc0 dan previewMc1)
- *     rank    -> nomor frame lencana rankMc
- *     rewards -> LARIK id barang, ditampilkan sebagai kemungkinan hadiah
- *     time    -> sisa pertarungan hari ini; 0 mematikan tombol serang
- *     xp/gold -> angka yang dipamerkan
- *
- * Konstanta panel: 5 room per halaman, maxEnemy 2, maxItem 6.
- * Kunci level diambil dari minLevel musuh PERTAMA.
+/* Eudemon Garden's preview and actual rewards share server/eudemon-garden.js.
+ * OldHuntingHouse sends the zero-based room index in start/finishHunting args[1].
  */
-const EUDEMON_ROOM = [
-  { boss: ['enemy338'],             rank: 1, time: 3, xp: 550, gold: 400,
-    rewards: ['wpn_1498', 'set_2248'] },
-  { boss: ['enemy339', 'enemy340'], rank: 2, time: 3, xp: 900, gold: 700,
-    rewards: ['wpn_1343', 'back_557'] },
-];
 
 /* Hunting House (HuntingHouse2) -- dikelompokkan per zona di peta panel.
  *
@@ -302,6 +321,28 @@ function balasanHadiah(tambahan) {
     message: '',
     z9f: null,
   }, tambahan || {});
+}
+
+// Battle.getBossRewardResponse02 menambah XP/Gold di klien dari `reward`,
+// lalu memanggil updateCharacter dengan 0/0. Simpan jumlah yang sama di sini;
+// updateCharacter berikutnya hanya menyinkronkan total absolutnya.
+function selesaikanHadiahBos(args, layanan) {
+  if (Number(args && args[3]) !== 0) {
+    return balasanHadiah({ reward: [], reward_get: [] });
+  }
+
+  const xp = Number(HADIAH_BOS.find(h => h.startsWith('xp_'))?.slice(3)) || 0;
+  const gold = Number(HADIAH_BOS.find(h => h.startsWith('gold_'))?.slice(5)) || 0;
+  const hasil = chars.addProgress(xp, gold);
+  if (!hasil) return { status: 0, error: 'Karakter aktif tidak ditemukan' };
+
+  for (const hadiah of barangHadiah()) {
+    try { beriHadiah(hadiah); }
+    catch (e) { log('   !! hadiah ' + hadiah + ': ' + e.message); }
+  }
+  log('   ' + layanan + ': +' + xp + ' XP, +' + gold + ' Gold -> ' +
+      'xp=' + hasil.c.xp + ' gold=' + hasil.c.gold);
+  return balasanHadiah();
 }
 
 /* Peta nomor ekor -> id pet, disalin dari tailPetArr di konstruktor
@@ -606,7 +647,10 @@ function kageKlaim(args) {
   }
 
   const hadiah = hadiahMisiKage(guru, no);
-  try { beriHadiah(hadiah); } catch (e) { log('   !! hadiah ' + hadiah + ': ' + e.message); }
+  try { beriHadiah(hadiah); } catch (e) {
+    log('   !! hadiah ' + hadiah + ': ' + e.message);
+    return { status: 0, error: 'Hadiah Kage gagal diberikan.' };
+  }
   st.misi[id] = 2;
   log('   Kage ' + guru.nama + ' misi ' + no + ' diklaim -> ' + hadiah);
 
@@ -616,6 +660,13 @@ function kageKlaim(args) {
   let selesai = true;
   for (let i = 1; i <= KAGE_JUMLAH_MISI; i++) if (Number(st.misi[guru.huruf + i]) !== 2) selesai = false;
   const balas = balasanKage(st, guru);
+  // validateAmfResponse memakai update_inventory untuk menambah hadiah ke
+  // inventaris klien yang sedang berjalan. Tanpa ini hadiah baru terlihat
+  // sesudah Ruffle dimuat ulang, walaupun sudah tersimpan di characters.json.
+  balas.update_inventory = {
+    add_item_id: [hadiah.replace('_', '')],
+    showPopup: false,
+  };
   if (selesai) {
     if (!st.learned.includes(guru.prefix)) st.learned.push(guru.prefix);
     st.kage = null; st.misi = {};
@@ -702,11 +753,26 @@ const handlers = {
 
   // args: [sessionKey, nama, gender, elemen, warnaKulit, rambut, wajah]
   'CharacterDAO.createCharacter': (args) => {
-    const c = chars.createCharacter(args);
-    log('   karakter dibuat: ' + c.name + ' (id ' + c.character_id + ')');
+    const preparing = args && args[7] === 'prepare';
+    const activeId = chars.getActiveId();
+    const pending = !preparing && activeId && chars.characterById(activeId);
+    const samePending = pending && pending.tutorialPending === true &&
+      pending.name === String(args[1]) &&
+      pending.gender === Number(args[2]) &&
+      pending.hair === String(args[5]) &&
+      pending.face === String(args[6]);
+    const c = samePending ? pending : chars.createCharacter(args);
+    const ready = chars.updateCharacter(c.character_id, character => {
+      if (preparing) character.tutorialPending = true;
+      else if (samePending) character.tutorialBattleFinished = true;
+      else if (!samePending) character.xp = 1;
+    });
+    chars.setActiveCharacter(c.character_id);
+    log('   karakter ' + (preparing ? 'disiapkan' : samePending ? 'melanjutkan tutorial' : 'dibuat') +
+        ': ' + c.name + ' (id ' + c.character_id + ')');
     return {
       status: 1, error: null,
-      result: chars.databaseCharacter(c),
+      result: chars.databaseCharacter(ready.character),
       character_id: c.character_id,
     };
   },
@@ -737,6 +803,226 @@ const handlers = {
     };
   },
 
+  'CharacterDAO.upgradeInvSlot': (args) => {
+    const kind = String(args && args[1]);
+    const count = Number(args && args[2]);
+    if (!['weapon','body_set','back','item','essence','material','accessory','pet'].includes(kind) ||
+        !Number.isSafeInteger(count) || count < 1 || count > 1000 || !activeCharacter())
+      return { status: 0, error: 'Invalid inventory upgrade' };
+    if (!spendUtilityToken(count * (ACCOUNT.type === 2 ? 75 : 100)))
+      return { status: 0, error: 'Insufficient token' };
+    chars.updateCharacter(null, c => {
+      c.inventorySlotAdditions ||= {};
+      c.inventorySlotAdditions[kind] = (Number(c.inventorySlotAdditions[kind]) || 0) +
+        count;
+    });
+    return { status: 1, error: null, result: true };
+  },
+
+  'CharacterService.reviveBattleCharacter': () => {
+    if (!spendUtilityToken(50)) return { status: 0, error: 'Insufficient token' };
+    return { status: 1, error: null, result: true,
+      update_inventory: { token: ACCOUNT.balance } };
+  },
+
+  'OptionData.setOption': (args) => {
+    const musicIndex = Number(args && args[1]);
+    const musicVolume = Number(args && args[2]);
+    const soundVolume = Number(args && args[3]);
+    if (![musicIndex,musicVolume,soundVolume].every(Number.isFinite))
+      return { status: 0, error: 'Invalid option' };
+    chars.updateCharacter(null, c => {
+      c.optionData = { music_index: Math.max(0, Math.floor(musicIndex)),
+        music_volume: Math.max(0, Math.min(1, musicVolume)),
+        sound_on: Math.max(0, Math.min(1, soundVolume)) };
+    });
+    return { status: 1, error: null, result: true };
+  },
+
+  'CharacterService.changeName': (args) => {
+    const name = String(args && args[1] || '').trim();
+    if (!name || name.length > 30 || !activeCharacter())
+      return { status: 0, error: 'Invalid name' };
+    if (!spendUtilityToken(ACCOUNT.type === 2 ? 600 : 1000))
+      return { status: 0, error: 'Insufficient token' };
+    chars.updateCharacter(null, c => { c.name = name; });
+    return { status: 1, error: null, result: true };
+  },
+
+  'CharacterService.changePetName': (args) => {
+    const id = String(args && args[1]);
+    const name = String(args && args[2] || '').trim();
+    const c = activeCharacter();
+    if (!name || name.length > 30 || !c || !(c.pets || []).some(p => String(p.id) === id))
+      return { status: 0, error: 'Invalid pet or name' };
+    if (!spendUtilityToken(ACCOUNT.type === 2 ? 600 : 1000))
+      return { status: 0, error: 'Insufficient token' };
+    chars.updateCharacter(null, character => {
+      character.pets.find(p => String(p.id) === id).name = name;
+    });
+    return { status: 1, error: null, result: true };
+  },
+
+  'CharacterDAO.deletePet': (args) => {
+    const id = String(args && args[2]);
+    const changed = chars.updateCharacter(null, c => {
+      const i = (c.pets || []).findIndex(p => String(p.id) === id);
+      if (i < 0) return false;
+      c.deletedPets ||= [];
+      c.deletedPets.push({ ...c.pets[i], deletedAt: Date.now() });
+      c.pets.splice(i, 1);
+    });
+    return changed ? { status: 1, error: null, result: true } :
+      { status: 0, error: 'Pet not found' };
+  },
+
+  'CharacterDAO.upgradePet': (args) => {
+    const sourceId = String(args && args[1]);
+    const targetId = String(args && args[2]);
+    const c = activeCharacter();
+    const source = c && (c.pets || []).find(p => String(p.id) === sourceId);
+    const sourceData = PET_UPGRADES['pet' + sourceId];
+    const targetData = PET_UPGRADES['pet' + targetId];
+    const path = sourceData && String(sourceData.path || '').split(',')
+      .map(x => x.split(':').map(Number));
+    const index = path && path.findIndex(([id]) => id === Number(sourceId));
+    if (!source || !targetData || !path || index < 0 || !path[index + 1] ||
+        path[index + 1][0] !== Number(targetId) || Number(source.level) < path[index][1] ||
+        !chars.petById(targetId)) return { status: 0, error: 'Invalid pet upgrade' };
+    const materials = String(targetData.material || '')
+      .split(',').filter(Boolean).map(s => s.split(':').map(Number));
+    if (materials.some(([id, count]) => (Number((c.materials || {})[id]) || 0) < count))
+      return { status: 0, error: 'Missing material' };
+    const cost = Number(targetData.token) || 0;
+    if (!spendUtilityToken(cost)) return { status: 0, error: 'Insufficient token' };
+    const changed = chars.updateCharacter(null, character => {
+      const i = character.pets.findIndex(p => String(p.id) === sourceId);
+      if (i < 0) return false;
+      character.pets[i] = { ...character.pets[i], id: targetId };
+      for (const [id, count] of materials) character.materials[id] -= count;
+      return character.pets[i];
+    });
+    return { status: 1, error: null,
+      result: chars.petBuyResult(changed.result, ACCOUNT.sessionKey) };
+  },
+
+  'PetDAO.addPetMaturityByItem': (args) => {
+    const id = String(args && args[1]);
+    const item = String(args && args[2]).replace(/^item/, '');
+    const gains = { 200:13, 201:12, 202:11, 203:10, 204:30, 1000:50 };
+    const changed = chars.updateCharacter(null, c => {
+      const pet = (c.pets || []).find(p => String(p.id) === id);
+      const bag = Array.isArray(c.essences) ? c.essences : [];
+      const i = bag.findIndex(x => String(x) === item);
+      if (!pet || !gains[item] || i < 0) return false;
+      c.essences.splice(i, 1);
+      pet.maturity = Math.min(100, (Number(pet.maturity) || 0) + gains[item]);
+      return pet.maturity;
+    });
+    return changed ? { status: 1, error: null, pet_maturity: changed.result } :
+      { status: 0, error: 'Pet food not found' };
+  },
+
+  'CharacterDAO.upgradeEmblemType': () => {
+    chars.updateCharacter(null, c => {
+      c.emblemType = 2; c.emblemXpBonusClaim = true; c.emblemXpBonusTimes = 0;
+    });
+    return { status: 1, error: null, days_left: 0 };
+  },
+  'CharacterDAO.downgradeEmblemType': () => {
+    chars.updateCharacter(null, c => {
+      c.emblemType = 1; c.emblemXpBonusClaim = false; c.emblemXpBonusTimes = 0;
+    });
+    return { status: 1, error: null, days_left: 0 };
+  },
+  'CharacterDAO.claimEmblemType2XpBonus': () => {
+    chars.updateCharacter(null, c => {
+      c.emblemXpBonusClaim = false; c.emblemXpBonusTimes = 30;
+    });
+    return { status: 1, error: null, result: true };
+  },
+  'CharacterDAO.claimLevelUp': () => {
+    const c = activeCharacter();
+    if (!c) return { status: 0, error: 'Character not found' };
+    const today = new Date().toISOString().slice(0, 10);
+    if (c.premiumClaimLevelDate === today) return { status: 0, error: 'Already claimed' };
+    const reward = Number(c.level) >= 80 ? 0 :
+      Math.max(0, chars.xpForLevel(Number(c.level) + 1) - (Number(c.xp) || 0));
+    chars.updateCharacter(null, character => { character.premiumClaimLevelDate = today; });
+    if (reward) chars.addProgress(reward, 0, c.character_id);
+    return { status: 1, error: null, xp_reward: reward };
+  },
+  'CharacterDAO.addTrialEmblemThirdSkillType': (args) => {
+    const type = String(args && args[1] || '');
+    if (!type) return { status: 0, error: 'Invalid skill type' };
+    chars.updateCharacter(null, c => {
+      c.trialEmblemSkillTypes ||= [];
+      if (!c.trialEmblemSkillTypes.includes(type)) c.trialEmblemSkillTypes.push(type);
+    });
+    return { status: 1, error: null };
+  },
+  'CharacterDAO.deleteCharactersOnRemoveTrialEmblem': () => {
+    for (const c of chars.allCharacters().filter(x => x.trialEmblem === true && !x.deletedAt)) {
+      chars.updateCharacter(c.character_id, character => { character.deletedAt = Date.now(); });
+    }
+    chars.updateCharacter(null, c => { c.emblemType = 1; });
+    return { status: 1, error: null, result: true };
+  },
+
+  'CharacterDAO.updateDailyTask': (args) => {
+    const id = String(args && args[1]);
+    const task = args && args[2];
+    if (!task || typeof task !== 'object') return { status: 0, error: 'Invalid daily task' };
+    const today = new Date().toISOString().slice(0, 10);
+    const changed = chars.updateCharacter(id, c => {
+      if (c.dailyTaskClaimDay === today) return false;
+      c.dailyTaskDate = today;
+      c.dailyTask = { total: Math.max(0, Number(task.total) || 0),
+        amount: Math.max(0, Number(task.amount) || 0),
+        completeTime: Number(task.completeTime) || 0, type: String(task.type || '') };
+    });
+    return { status: changed ? 1 : 0, error: changed ? null : 'Character not found' };
+  },
+  'CharacterService.completeDailyTask': () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const changed = chars.updateCharacter(null, c => {
+      const d = c.dailyTask || {};
+      if (c.dailyTaskDate !== today || !d.total || d.amount < d.total || d.claimed ||
+          c.dailyTaskClaimDay === today) return false;
+      d.claimed = true;
+      d.completeTime = Math.floor(Date.now() / 1000);
+      c.dailyTask = d;
+      c.dailyTaskClaimDay = today;
+      c.gold = (Number(c.gold) || 0) + 1000;
+    });
+    return changed ? { status: 1, error: null, dt_reward: { type: 'gold', amount: 1000 } } :
+      { status: 0, error: 'Daily task not complete' };
+  },
+
+  'CharacterDAO.requestDeleteCode': (args) => {
+    const id = String(args && args[1]);
+    const c = chars.characterById(id);
+    return c && !c.deletedAt ? { status: 1, error: null, result: true,
+      delete_code: 'DELETE' } : { status: 0, error: 'Character not found' };
+  },
+  'CharacterDAO.deleteCharacter': (args) => {
+    const code = String(args && args[1] || '').trim();
+    const id = String(args && args[2]);
+    if (code !== 'DELETE') return { status: 1, error: 'Use DELETE for local confirmation', msg: 'wrong_code' };
+    const changed = chars.updateCharacter(id, c => { c.deletedAt = Date.now(); });
+    return changed ? { status: 1, error: null, result: true } :
+      { status: 0, error: 'Character not found' };
+  },
+  'CharacterManagement.recoverCharacter': (args) => {
+    const id = String(args && args[1]);
+    const changed = chars.updateCharacter(id, c => {
+      if (!c.deletedAt) return false;
+      delete c.deletedAt;
+    }, true);
+    return changed ? { status: 1, error: null, result: true } :
+      { status: 0, error: 'Character not found' };
+  },
+
   // Dipanggil saat pemain mengklik slot karakter.
   // Responsnya diproses DataParser.parseRawCharacter, yang memakai
   // format MENTAH (baris database) — bukan format databaseCharacter().
@@ -754,43 +1040,14 @@ const handlers = {
     if (!dipakai && idDiminta != null) {
       log('   !! id karakter ' + idDiminta + ' tidak ada, memakai karakter pertama');
     }
+    dailyRewards.getStatus(c.character_id);
     log('   karakter dipilih: ' + c.name + ' lv' + c.level +
         ' (id=' + (chars.getActiveId() || '?') + ')');
 
-    // Bekali batu gauntlet kalau kurang dari 220. Tombol Implant memeriksa
-    // toolkit.getItemCount(<batu>) >= 220 dari inventaris hasil login, jadi
-    // penambahannya harus terjadi SEBELUM rawCharacter() disusun.
-    if (BEKALI_BATU_GAUNTLET) {
-      // Ditulis sebagai BAHAN, bukan barang biasa. Dua alasan:
-      //   - Toolkit.getItemCount @101-131 memakai getDisplayData(id).type
-      //     lalu mencari di inventaris TYPE_MATERIAL; batu di character_item
-      //     tidak akan pernah terhitung, jadi tetap tampil 0/220
-      //   - character_material memakai format "id:jumlah", jadi 6 potongan
-      //     saja -- bukan 1320 entri yang membuat tab Consumable Item
-      //     kelebihan kapasitas
-      // Buang dulu batu yang pernah masuk ke inventaris BARANG. Selama masih
-      // di sana, MapMenu.countArrItems menelusuri 1300+ entri dan tiap
-      // pencarian gagal ("(count) Item not exist :: ID-item1147-"), sampai
-      // Flash memutusnya dengan
-      //     #1502 A script has executed for longer than 15 seconds
-      // di updateEquipmentList -- itulah sebab panel Gear tidak pernah
-      // selesai menggambar isinya.
-      const dibuang = chars.bersihkanBatuGauntlet(BATU_GAUNTLET);
-      if (dibuang) log('   batu salah tempat dibuang dari inventaris: ' + dibuang + ' entri');
-
-      const kurang = [];
-      for (const b of BATU_GAUNTLET) {
-        const punya = Number((c.materials || {})[b]) || 0;
-        if (punya < 220) { chars.setMaterial(b, 220); kurang.push('item' + b); }
-      }
-      if (kurang.length) log('   bahan gauntlet dilengkapi (220): ' + kurang.join(', '));
-    } else {
-      // Buang batu yang terlanjur masuk, supaya Gear tidak lagi kelebihan
-      // kapasitas. Barang lain tidak disentuh.
-      const dibuang = chars.bersihkanBatuGauntlet(BATU_GAUNTLET);
-      if (dibuang) log('   batu gauntlet dibersihkan dari inventaris: ' + dibuang + ' entri');
-      for (const b of BATU_GAUNTLET) chars.setMaterial(b, 0);
-    }
+    // Batu disimpan sebagai material. Bersihkan salinan lama yang pernah
+    // masuk ke inventaris barang agar panel Gear tidak kelebihan kapasitas.
+    const dibuang = chars.bersihkanBatuGauntlet(BATU_GAUNTLET);
+    if (dibuang) log('   batu gauntlet salah tempat dibersihkan: ' + dibuang + ' entri');
 
     return { status: 1, error: null,
              result: chars.rawCharacter(chars.characterById(chars.getActiveId()) || c,
@@ -884,6 +1141,27 @@ const handlers = {
         (hasil.status === 0 ? ' (terbuka)' : ' (terkunci, rank <= 7)') +
         '  misi=' + hasil.mission.map(m => m.id).join(','));
     return { status: 1, error: null, result: hasil };
+  },
+
+  'SSTraining.startSSMission': (args) => {
+    const hasil = chars.mulaiMisiSennin(args && args[1]);
+    if (hasil.gagal) return { status: 0, error: hasil.gagal };
+    log('   mulai misi SS: ' + hasil.id);
+    return { status: 1, error: null, result: { mission_id: hasil.id } };
+  },
+
+  'SSTraining.refreshMission': () => {
+    const hasil = chars.segarkanMisiSennin();
+    if (hasil.gagal) return { status: 0, error: hasil.gagal };
+    log('   daftar misi SS disegarkan: ' + hasil.result.mission.map(m => m.id).join(','));
+    return { status: 1, error: null, result: hasil.result };
+  },
+
+  'Lvl80Exam.markRewardListRead': () => {
+    const hasil = chars.tandaiHadiahLv80Dibaca();
+    if (!hasil) return { status: 0, error: 'Karakter aktif tidak ditemukan.' };
+    log('   daftar hadiah Lv80 ditandai dibaca' + (hasil.sudah ? ' (sudah tersimpan)' : ''));
+    return { status: 1, error: null, result: 1 };
   },
 
   // Mengaktifkan pet dari panel Pets. args: [sessionKey, petId]
@@ -1082,8 +1360,9 @@ const handlers = {
       log('   data klan: result=0 (belum punya klan)');
       return Object.assign(dasar, { result: 0, clan_data: {}, building_data: [] });
     }
+    const jumlahAnggota = 1 + localFriends.friends.length;
     log('   data klan: result=1 "' + clan.name + '" anggota ' +
-        clan.member_number + '/' + clan.member_slots);
+        jumlahAnggota + '/' + clan.member_slots);
     // building_data null aman -- Clan.getAttackerBonus mengembalikan 0.
     // getClanResponse @164-171: Clan.buildingData = res.building_data as Array.
     // Entri {id, level} dipakai Clan.getBuildingBonus (code_library method
@@ -1093,7 +1372,7 @@ const handlers = {
       log('   bangunan klan: ' +
           bangunan.map(b => chars.BUILDING_DATA[b.id].name + ' Lv' + b.level).join(', '));
     }
-    return Object.assign(dasar, { result: 1, clan_data: clan, building_data: bangunan });
+    return Object.assign(dasar, { result: 1, clan_data: { ...clan, member_number: jumlahAnggota }, building_data: bangunan });
   },
 
   // Sinkronisasi sisa waktu musim klan. args: [sessionKey]
@@ -1135,36 +1414,22 @@ const handlers = {
   // args[3]: 0 dari completeMission, 1 dari failMission.
   'SSTraining.finishSSMission': (args) => {
     const idMisi = (args && args[1]) ? String(args[1]) : '';
-    const gagal  = Number(args && args[3]) === 1;
-
-    if (idMisi && !gagal) {
-      const m = chars.recordMission(idMisi);
-      if (m) {
-        log('   misi Sennin selesai: msn' + m.no +
-            '  (total misi tercatat: ' + m.total + ')');
-      } else {
-        log('   !! id misi Sennin tidak dikenali: ' + idMisi);
-      }
-    } else if (gagal) {
-      log('   misi Sennin GAGAL: ' + idMisi);
+    const gagal = Number(args && args[3]) === 1;
+    const hasil = chars.selesaikanMisiSennin(idMisi, gagal);
+    if (hasil.gagal) return { status: 0, error: hasil.gagal };
+    if (hasil.diabaikan) {
+      log('   hasil misi SS diabaikan karena tidak ada sesi aktif: ' + idMisi);
+    } else {
+      log('   misi SS ' + (gagal ? 'gagal' : 'selesai') + ': ' + idMisi +
+          '  SS=' + hasil.ssLama + ' -> ' + hasil.ssBaru);
     }
-
-    // Klien menambah 30 poin SENJUTSU_SS hanya di memori; simpan juga di sini
-    // supaya tidak hilang saat muat ulang.
-    if (!gagal) {
-      const p = chars.tambahSenjutsuSS(30);
-      if (p) log('   poin latihan Sennin: ' + p.lama + ' -> ' + p.baru);
-    }
-
     const c = chars.characterById(chars.getActiveId());
     return {
-      status: 1,
-      error: null,
-      result: 0,
+      status: 1, error: null, result: 0,
       update_inventory: {
         showPopup: false,
-        xp:    c ? c.xp    : 0,
-        gold:  c ? c.gold  : 0,
+        xp: c ? c.xp : 0,
+        gold: c ? c.gold : 0,
         token: c ? (c.token || 0) : 0,
       },
     };
@@ -1255,6 +1520,19 @@ const handlers = {
     return { status: 1, error: null, result: 0 };
   },
 
+  'SenjutsuService.skillUpdateMax': (args) => {
+    const skillId = (args && args[1] != null) ? String(args[1]) : '';
+    const result = chars.maksimalkanSkillSenjutsu(skillId);
+    if (!result || result.gagal) {
+      log('   !! Upgrade Max Sage ditolak: ' + ((result && result.gagal) || 'karakter tidak ada'));
+      return { status: 1, error: null, upgraded: false,
+               message: (result && result.gagal) || 'Upgrade Max gagal.' };
+    }
+    log('   Upgrade Max Sage: skill ' + result.skillId + ' -> Lv10, biaya ' + result.cost + ' SS');
+    return { status: 1, error: null, upgraded: true,
+             senjutsu_level: result.level, final_sen_spirit: result.sisaSS };
+  },
+
   // --- Bloodline / Talent (BloodlineService) ---------------------
 
   // Membuka satu bloodline di Bloodline Shop.
@@ -1301,25 +1579,25 @@ const handlers = {
 
   // Naikkan level skill bloodline.
   // args (BloodlineProfile.ConfirmUpgrade):
-  //     [sessionKey, tipe, levelBaru, skillId, biayaBP, sequence, hash]
-  //     mis. [..., "1", "10", "1041", "2", ...]
+  //     [sessionKey, characterId, bloodlineId, skillId, levelTujuan,
+  //      sequence, hash]. Level tujuan ada di args[4].
   //
   // upgradeResponse (method 723) @544-572:
   //     updateData(BLOODLINE, int(res.remain_bp));
   // SATU-SATUNYA field yang dibaca. Tanpa itu int(undefined) = 0 dan poin
   // bloodline pemain jadi nol setiap kali menaikkan skill.
   'BloodlineService.skillUpdate': (args) => {
-    const level   = (args && args[2] != null) ? args[2] : 1;
     const skillId = (args && args[3] != null) ? String(args[3]) : '';
-    const biaya   = (args && args[4] != null) ? Number(args[4]) : 0;
+    const tujuan  = (args && args[4] != null) ? Number(args[4]) : NaN;
 
-    const h = chars.naikkanSkillBloodline(skillId, level, biaya);
+    const h = chars.naikkanSkillBloodline(skillId, tujuan);
     if (!h || h.gagal) {
-      log('   !! upgrade skill bloodline ditolak: ' + ((h && h.gagal) || 'karakter tidak ada'));
-      return { status: 1, error: null, remain_bp: chars.bloodlinePoin() };
+      const alasan = (h && h.gagal) || 'karakter tidak ada';
+      log('   !! upgrade skill bloodline ditolak: ' + alasan);
+      return { status: 0, error: alasan, remain_bp: chars.bloodlinePoin() };
     }
     log('   skill bloodline ' + h.skillId + ' -> Lv' + h.level +
-        ' (biaya ' + biaya + ' BP, sisa ' + h.sisaBP + ')');
+        ' (biaya ' + h.biayaBP + ' TP, sisa ' + h.sisaBP + ')');
     return { status: 1, error: null, remain_bp: h.sisaBP };
   },
 
@@ -1409,7 +1687,8 @@ const handlers = {
       //         initButton(scratchBtn, checkScratch);     <-- tombol AKTIF
       //     }
       // Nilai 0 membuat ketiga tombol tetap disabled dan panel tampak kosong.
-      dailyRoulette_remainTime: 3,
+      dailyRoulette_remainTime: chars.scratchRemaining(
+        chars.characterById(chars.getActiveId())),
       bouns_discount: false,         // true -> harga gosok jadi 3 token
     };
   },
@@ -1438,84 +1717,110 @@ const handlers = {
   //     GOLD, XP%, XP, TOKEN, TP, SP, ITEM, WEAPON, BACK, SKILL,
   //     CLOTH, EMBLEM, PET, PACKAGE
   // Nilai di luar daftar itu jatuh ke default dan tidak menampilkan apa pun.
-  'RouletteService.scratchCardAtfer20Level': (args) => {
-    const jenis  = 'GOLD';
-    const jumlah = 5000;
-
-    // Main.getHash(x) = sha1(x + SALT + sessionKey) -- sama seperti hash lain
-    // di server ini. Kalau meleset, klien memanggil onError("1216").
-    const signature = sha1(String(jenis) + String(jumlah) + SALT + ACCOUNT.sessionKey);
-
+  // Panel daily_login_3 memanggil scratchCard; panel lain memakai nama After20.
+  'RouletteService.scratchCard': (args) => {
+    const paidWithToken = args && args[1] === 'token';
+    if (paidWithToken && ACCOUNT.balance < 5) {
+      return { status: 0, error: 'Not enough tokens' };
+    }
     const c = chars.characterById(chars.getActiveId());
-    log('   kartu gosok: ' + jenis + ' ' + jumlah +
-        ' (tipe gosok: ' + ((args && args[1]) || '-') + ')');
-
+    const reward = scratchRewards.choose(c);
+    const accountBefore = ACCOUNT.balance;
+    const characterBefore = c ? { xp: c.xp, gold: c.gold } : { xp: 0, gold: 0 };
+    const saved = c ? chars.applyScratchReward(c.id, reward, paidWithToken) : null;
+    if (saved && saved.denied) {
+      return { status: 0, error: 'No free scratch cards remaining' };
+    }
+    if (saved) ACCOUNT.balance = Math.max(0, ACCOUNT.balance + saved.accountDelta);
+    const signature = sha1(String(reward.reward_type) + String(reward.reward_amount) +
+                           SALT + ACCOUNT.sessionKey);
+    log('   kartu gosok: ' + reward.reward_type + ' ' + reward.reward_amount +
+        ' (tipe: ' + (paidWithToken ? 'token' : 'free') +
+        ', sisa gratis: ' + (saved ? saved.remaining : '-') + ')');
+    // validateAmfResponse memasang saldo awal sebelum animasi hadiah
+    // menambahkan reward_amount pada karakter/akun di sisi Flash.
     return {
-      status: 1,
-      error: null,
-      reward_type:   jenis,
-      reward_amount: jumlah,
+      status: 1, error: null,
+      reward_type: reward.reward_type,
+      reward_amount: reward.reward_amount,
       signature,
       update_inventory: {
         showPopup: false,
-        xp:    c ? c.xp    : 0,
-        gold:  c ? c.gold  : 0,
-        token: c ? (c.token || 0) : 0,
+        xp: characterBefore.xp,
+        gold: characterBefore.gold,
+        token: Math.max(0, accountBefore - (paidWithToken ? 5 : 0)),
       },
     };
   },
 
+  // Nama ini dipakai versi panel kartu gosok yang lebih baru.
+  'RouletteService.scratchCardAtfer20Level': (args) =>
+    handlers['RouletteService.scratchCard'](args),
+
   // --- Misi Lv80 (SLevelMission) --------------------------------
+  'SLevelMission.getChapterStatus': () => {
+    const state = chars.statusMisiSLevel();
+    return state ? { status: 1, error: null, result: state } :
+      { status: 0, error: 'Karakter aktif tidak ditemukan.' };
+  },
 
-  // Penyerahan hasil misi Lv80.
-  // args: [sessionKey, idMisi, arrayItem, skor, hash]   mis. [..., "msn274", [], 0, ...]
-  //
-  // Mission.getSGradeResponse (code_library, method 846):
-  //      6: if (res.update_inventory) res.update_inventory.showPopup = false;   <- ADA penjagaan
-  //     26: if (!validateAmfResponse(res)) return;
-  //     37: if (Mission.sMissioncomplete != 1) return;
-  //     48: arr = res.update_inventory.add_item_id as Array;   <- TANPA penjagaan -> #1010
-  //     68: if (arr[0] !== "item1") {
-  //             Main.showSMissionReward  = true;
-  //             Main.sMissionRewardItem  = arr[0];
-  //             Main.sMissionRewardList  = res.reward_list;
-  //             MISSION_DATA[id].xp   = arr[1].replace("xp","").replace("_1","");
-  //             MISSION_DATA[id].gold = arr[2].replace("gold","").replace("_1","");
-  //         }
-  //
-  // Jadi update_inventory WAJIB ada dan add_item_id WAJIB array.
-  //
-  // arr[0] sengaja diisi "item1" -- itu penanda "tidak ada item hadiah
-  // khusus", dan membuat klien melompat ke akhir (@74 ifstricteq L185).
-  // Kalau diisi selain itu, klien akan membaca arr[1] dan arr[2] sebagai
-  // "xp<n>_1" / "gold<n>_1" dan MENIMPA MISSION_DATA; kalau salah satunya
-  // tidak ada, .replace() pada undefined melempar #1009. Lebih aman
-  // memberi xp/gold lewat update_inventory seperti misi biasa.
+  'SLevelMission.getBattleStatus': () => {
+    const state = chars.statusMisiSLevel();
+    return state ? {
+      status: 1, error: null,
+      result: { chapter_status: state.chapter_status, mission_status: state.mission_status },
+      remain_energy: state.remain_energy,
+      energy_refill_remain: state.energy_refill_remain,
+    } : { status: 0, error: 'Karakter aktif tidak ditemukan.' };
+  },
+
+  'SLevelMission.startMission': (args) => {
+    const result = chars.mulaiMisiSLevel(args && args[1]);
+    if (result.gagal) return { status: 0, error: result.gagal };
+    log('   misi Lv80 dimulai: ' + result.id + '  energi=' +
+      (result.energy == null ? 'tetap' : result.energy));
+    return { status: 1, error: null, result: 0, slf: String(++battleSeq) };
+  },
+
+  'SLevelMission.buyBigRamen': (args) => {
+    const result = chars.beliRamenSLevel(args && args[1], ACCOUNT.balance);
+    if (result.gagal) return { status: 0, error: result.gagal };
+    ACCOUNT.balance -= result.cost;
+    log('   Big Ramen x' + result.count + ' dibeli: -' + result.cost +
+      ' token, saldo=' + ACCOUNT.balance);
+    return { status: 1, error: null, result: 0,
+      update_inventory: { add_item_id: ['item900_' + result.count],
+        showPopup: false, token: ACCOUNT.balance } };
+  },
+
+  'SLevelMission.useRamen': (args) => {
+    const result = chars.pakaiRamenSLevel(args && args[1]);
+    if (result.gagal) return { status: 0, error: result.gagal };
+    log('   ramen Lv80 dipakai: ' + result.item + '  energi=' + result.energy);
+    return { status: 1, error: null, result: 0,
+      update_inventory: { remove_item_id: [result.item + '_1'], showPopup: false } };
+  },
+
+  // Klien membaca tiga entri pertama add_item_id sebagai [barang, XP, gold].
   'SLevelMission.finishMission': (args) => {
-    const idMisi = (args && args[1]) ? String(args[1]) : '';
-    const m = idMisi ? chars.recordMission(idMisi) : null;
-    if (m) {
-      log('   misi Lv80 selesai: msn' + m.no +
-          '  success=' + m.entry.success +
-          '  (total misi tercatat: ' + m.total + ')');
-    } else if (idMisi) {
-      log('   !! id misi Lv80 tidak dikenali: ' + idMisi);
+    const id = args && args[1];
+    const result = chars.selesaikanMisiSLevel(id, Number(args && args[4]) === 1);
+    if (result.gagal) return { status: 0, error: result.gagal };
+    if (result.diabaikan) {
+      log('   hasil misi Lv80 diabaikan (tidak ada misi aktif): ' + id);
+      return { status: 1, error: null, result: 1, reward_list: [],
+        update_inventory: { add_item_id: ['item1'], remove_item_id: ['item1_1'],
+          showPopup: false } };
     }
-
-    const c = chars.characterById(chars.getActiveId());
-    return {
-      status: 1,
-      error: null,
-      result: 0,
-      reward_list: [],
-      update_inventory: {
-        add_item_id: ['item1'],   // penanda "tanpa item hadiah"
-        showPopup: false,
-        xp:    c ? c.xp    : 0,
-        gold:  c ? c.gold  : 0,
-        token: c ? (c.token || 0) : 0,
-      },
-    };
+    log('   misi Lv80 ' + (result.failed ? 'gagal' : 'selesai') + ': ' + id +
+      '  success=' + result.entry.success + ' fail=' + result.entry.fail);
+    const reward = result.failed ? [] : [
+      'item900', 'xp' + result.mission[3] + '_1', 'gold' + result.mission[4] + '_1',
+    ];
+    return { status: 1, error: null, result: 0,
+      reward_list: result.failed ? [] : ['item900'],
+      update_inventory: { add_item_id: reward, showPopup: false,
+        ...(result.failed ? {} : { xp: result.xp, gold: result.gold }) } };
   },
 
   // Upgrade batas stamina klan. args: [sessionKey]
@@ -1678,6 +1983,7 @@ const handlers = {
   // diterima. member_number ada di TINGKAT ATAS, bukan di dalam result.
   'ClanService.getMemberList': () => {
     const anggota = chars.anggotaKlan();
+    if (anggota.length) anggota.push(...localFriends.clanMembers());
     log('   daftar anggota klan: ' + anggota.length + ' orang');
     return {
       status: 1,
@@ -1713,15 +2019,16 @@ const handlers = {
         result: { clan_gold: 0, clan_token: 0, member_number: 0 },
       };
     }
+    const jumlahAnggota = 1 + localFriends.friends.length;
     log('   data ruang klan "' + clan.name + '": gold=' + clan.gold +
-        ' token=' + clan.token + ' anggota=' + clan.member_number);
+        ' token=' + clan.token + ' anggota=' + jumlahAnggota);
     return {
       status: 1,
       error: null,
       result: {
         clan_gold:     clan.gold,
         clan_token:    clan.token,
-        member_number: clan.member_number,
+        member_number: jumlahAnggota,
       },
     };
   },
@@ -1820,7 +2127,10 @@ const handlers = {
   // dengan TypeError #1009 dan peta ikut error beruntun di checkGameStatus().
   'CharacterDAO.getCharacterProfileById': (args) => {
     const id = args && args[1];
-    const c = (id != null && chars.characterById(id)) || chars.firstCharacter();
+    const friend = localFriends.byId(id);
+    const template = chars.characterById(chars.getActiveId()) || chars.firstCharacter();
+    const c = friend ? localFriends.profile(friend, template, chars.xpForLevel)
+                     : ((id != null && chars.characterById(id)) || template);
     if (!c) return { status: 1, error: null, result: null };
     log('   profil karakter diminta: ' + c.name + ' lv' + c.level + ' (id=' + id + ')');
     return {
@@ -1879,55 +2189,12 @@ const handlers = {
 
   // --- Panel & fitur lain ---------------------------------------
 
-  // Responsnya diproses NewDailyLogin2017.showResponseFunction, yang
-  // melakukan `item_list as Array` lalu membaca .length di akhir loop.
-  // Kalau item_list bukan Array, hasil coerce-nya null -> #1009.
-  // Responsnya diproses NewDailyLogin2017.showResponseFunction.
-  // Tipe diambil dari deklarasi slot di Panel_New_Daily_Login.swf:
-  //   loginDay   : Array      <- bukan angka
-  //   rewardDay  : Array      <- bukan angka
-  //   nowtime    : int
-  //   part2      : Boolean
-  // dan item_list di-coerce ke Array lalu dibaca .length-nya,
-  // sedangkan tiap elemennya juga di-coerce ke Array lalu di-join.
-  'NewDailyRewardStamp2017.getStatus': () => ({
-    status: 1, error: null,
-    // onShow() mengulang 31 kali dan mengisi TextField dari kedua array
-    // ini. Kalau isinya kosong, loginDay[i] bernilai undefined; AS3
-    // meng-coerce undefined ke null saat dimasukkan ke parameter
-    // bertipe String, dan TextField.text = null melempar
-    // "#2007: Parameter text must be non-null".
-    // Karena itu keduanya harus punya 31 entri, bukan array kosong.
-    loginDay:  Array.from({ length: 31 }, (_, i) => String(i + 1)),
-    rewardDay: Array.from({ length: 31 }, () => '0'),
+  // Calendar statuses: 31 date flags, six milestone thresholds/rewards/claim flags.
+  'NewDailyRewardStamp2017.getStatus': () =>
+    dailyRewards.getStatus((activeCharacter() || {}).character_id),
 
-    // Panel selalu mengulang 31 kali di onShow():
-    //     String(stampReward[i]).split("_")
-    // dan stampReward diisi dari item_list saat respons diterima:
-    //     stampReward.push( item_list[i].join(",") )
-    //
-    // Jadi tiap entri adalah Array berisi satu string "itemId_jumlah".
-    // Kalau item_list kosong, stampReward[i] jadi undefined dan
-    // pencarian data itemnya melempar #1009.
-    item_list: Array.from({ length: 31 }, () => ['item1_1']),
-
-    // Saat hadiah diklaim, panel menulis ke respons yang ia simpan:
-    //     this.showResponse.claimReward[this.claimNum] = "2"
-    // Jadi field ini harus ada dan bisa diindeks, kalau tidak
-    // undefined[claimNum] melempar #1010 di getDailyReward().
-    // "0" = belum diklaim, "2" = sudah.
-    claimReward: Array.from({ length: 31 }, () => '0'),
-    // -> panel.serverDesc (Object). initButtonAndText membaca
-    //    .desc1, .desc2, .desc3 darinya. String kosong menyebabkan
-    //    "#1069: Property desc1 not found on String".
-    txt: { desc1: '', desc2: '', desc3: '' },
-    now_time: Math.floor(Date.now() / 1000),
-    part2: false,
-  }),
-
-  'NewDailyRewardStamp2017.claimReward': () => ({
-    status: 1, error: null, item_list: [], result: [],
-  }),
+  'NewDailyRewardStamp2017.claimReward': args =>
+    dailyRewards.claimReward((activeCharacter() || {}).character_id, args && args[1]),
 
   'SpecialReward.getLvUpReward': () => ({
     status: 1, error: null, result: [], reward_list: [],
@@ -1936,6 +2203,56 @@ const handlers = {
   'SpecialReward.claimLvUpReward': () => ({
     status: 1, error: null, result: [],
   }),
+
+  // Secret Scroll of Wisdom (popup_claimSkill.swf)
+  'SpecialReward.premiumClaimSkillSet': () => {
+    const activeId = chars.getActiveId() || (chars.firstCharacter() && chars.firstCharacter().character_id);
+    chars.addSecretScrolls(activeId, 1);
+    log('   klaim Secret Scroll of Wisdom (item503) untuk karakter ' + activeId);
+    return {
+      status: 1,
+      error: null,
+      result: { item: 'item503', amount: 1 },
+      message: 'You have received 1 Secret Scroll of Wisdom!',
+    };
+  },
+
+  'CharacterDAO.learnFullSkillSet': (args) => {
+    // Flash client mengirim [sessionKey, "item503", selectedSkillType, hash]
+    // selectedSkillType adalah string ("wind", "fire", "lightning", "earth", "water")
+    // atau angka (1=wind, 2=fire, 3=lightning, 4=earth, 5=water)
+    const raw = (args && typeof args[2] !== 'undefined') ? args[2] : (args && args[1]);
+    let elemName = 'fire';
+    const numMap = { 1: 'wind', 2: 'fire', 3: 'lightning', 4: 'earth', 5: 'water' };
+
+    if (typeof raw === 'string') {
+      const lower = raw.trim().toLowerCase();
+      if (['wind', 'fire', 'lightning', 'earth', 'water'].includes(lower)) {
+        elemName = lower;
+      } else if (numMap[Number(lower)]) {
+        elemName = numMap[Number(lower)];
+      }
+    } else if (typeof raw === 'number' && numMap[raw]) {
+      elemName = numMap[raw];
+    }
+
+    const activeId = chars.getActiveId() || (chars.firstCharacter() && chars.firstCharacter().character_id);
+    const learned = chars.unlockElementSkills(activeId, elemName);
+    chars.removeItem('503', 1);
+    const allSkillsForElem = (chars.ELEMENT_SKILLS && chars.ELEMENT_SKILLS[elemName]) || [];
+    // Kirim seluruh skill elemen tersebut ke Flash agar in-memory inventaris Flash
+    // langsung memuat semuanya dan mengubah status kartu menjadi tanda centang hijau.
+    const returnSkills = allSkillsForElem.length > 0 ? allSkillsForElem : learned;
+    log('   learnFullSkillSet elemen "' + elemName + '": ' + learned.length + ' skill baru dipelajari, total ' + returnSkills.length + ' jutsu dikirim ke Flash');
+    return {
+      status: 1,
+      error: null,
+      result: {
+        learn_skill_id: returnSkills,
+      },
+      learn_skill_id: returnSkills,
+    };
+  },
 
   // Tanpa Facebook, daftar teman selalu kosong.
   // RequestBox.gotoHide() berbunyi:
@@ -2004,144 +2321,53 @@ const handlers = {
   // `room` satu-satunya field yang dibaca dari result di seluruh SWF ini.
   // Array kosong aman: perulangannya dilewati, dan initDetail() maupun
   // loadPanelContent() tidak menyentuh enemyList sama sekali.
-  // Panel tail pet (popup_tail_pet.swf, kelas paymentTailPet).
-  //
-  //   getCanBuyTailsResponse(response) {
-  //       this.method_tokenBuy = response.active_tail_number;         // <- Array
-  //       this.ownedTailArr = (response.owned_tail_number != null)
-  //                           ? response.owned_tail_number as Array : [];
-  //       for (i = 0; i < tailPetCanShowArr.length; i++)
-  //           if (method_tokenBuy.indexOf(tailPetCanShowArr[i]) < 0) ...
-  //       this.defaultPost = method_tokenBuy[method_tokenBuy.length - 1];
-  //       Central.main.hideAmfLoading();                              // <- sesudahnya
-  //   }
-  //
-  // `method_tokenBuy` bertipe Array, jadi `active_tail_number` yang tidak ada
-  // ter-coerce jadi NULL (bukan undefined) — lalu .indexOf() atau .length
-  // melempar #1009. Karena hideAmfLoading() baru dipanggil sesudah itu,
-  // layarnya ikut macet.
-  //
-  // `owned_tail_number` sudah punya penjaga null di klien, jadi sebenarnya
-  // opsional — dikirim juga supaya bentuknya konsisten.
-  //
-  // Array KOSONG tidak cukup: defaultPost jadi undefined, lalu checkMcPost()
-  // dan updateTab() meledak saat panel digambar (#1009 dan #1010 di frame10).
-  //
-  // Isinya diambil dari nilai bawaan panel itu sendiri. Konstruktornya
-  // menyiapkan:
-  //     tailPetArr        = [141, 131, 86, 74, 73, 71, 68, 65]
-  //     tailSwfArr        = ['pet_146','pet_141','pet_131','tail_4_3',
-  //                          'tail_5','tail_6','tail_7','snake_0','fox_1']
-  //     tailBtnArr        = ['tailx','pet1Btn' ... 'pet9Btn']
-  //     tailPetCanShowArr = [1, 2]
-  //     method_tokenBuy   = [1, 2, 3, 4, 5, 6, 7, 8, 9]   <- lalu DITIMPA respons ini
-  //
-  // Jadi mengirim 1..9 mengembalikan panel ke perilaku bawaannya, dan
-  // defaultPost = method_tokenBuy[length-1] = 9 seperti semula.
-  // Panel pet ekor (popup_tail_pet.swf, kelas paymentTailPet).
-  //
-  // Konstanta panel, dibaca dari konstruktornya:
-  //     tailPetArr        = [0, 146, 141, 131, 86, 74, 73, 71, 68, 65]
-  //     tailPetCanShowArr = [1, 2, 3, 4]        <- EMPAT ekor bisa tampil
-  //     method_tokenBuy   = [1..9]              <- DITIMPA active_tail_number
-  //
-  // getCanBuyTailsResponse @19-130:
-  //     method_tokenBuy = res.active_tail_number
-  //     for i in 0..tailPetCanShowArr.length-1:
-  //         if (method_tokenBuy.indexOf(tailPetCanShowArr[i]) < 0)
-  //             tailPetOverDateArr.push(...)      <- dianggap kedaluwarsa
-  //     defaultPost = method_tokenBuy[method_tokenBuy.length - 1]
-  //
-  // Larik ini punya DUA tugas sekaligus, dan itu jebakannya:
-  //
-  //   a) Tiap nomor ekor 1..4 HARUS ada di sini. Yang tidak ada masuk
-  //      tailPetOverDateArr, jadi tombol beli-token tidak pernah dibuat.
-  //      Nilai lama [1,2,0] itulah sebab Sanbi (3) dan Yonbi (4) tidak
-  //      punya tombol dan tidak bisa dibeli dengan token.
-  //
-  //   b) Elemen TERAKHIR dipakai sebagai defaultPost = nowPost, yaitu
-  //      INDEKS ke tailPetCanShowArr -- bukan nomor ekor:
-  //          updateDetail @66-86: getTailDetail(tailPetCanShowArr[nowPost])
-  //          getTailDetail @14-31: PET_DATA.find("pet" + tailPetArr[tailNum])
-  //      Jadi nilainya harus 0..3. Kalau diisi 4, tailPetCanShowArr[4]
-  //      undefined -> petObj null -> #1009 di setUpGetMethodBtn, persis
-  //      yang dicetak panel sendiri di flashlog:
-  //          Jane..............this.tailPetArr[tailNum] = 0
-  //          Jane..............petObj = null
-  //
-  // [1,2,3,4,0] memenuhi keduanya: 1-4 membuat keempat ekor bisa dibeli,
-  // lalu 0 di akhir menjadikan nowPost = 0 -> tailPetCanShowArr[0] = 1 ->
-  // tailPetArr[1] = 146, pet yang terbukti ditemukan PET_DATA di log Anda.
-  // Pembelian pet ekor dengan token.
-  //
-  // confirmBuyPet @21-71 mengirim
-  //     Anni5th.buyPet([sessionKey, String(petObj.id), petObj.name, lang])
-  // dengan petObj = getTailDetail(tailPetCanShowArr[nowPost]), yaitu entri
-  // PET_DATA hasil pencarian "pet" + tailPetArr[tailNum]. Jadi args[1]
-  // berbentuk "pet86" (Yobi), "pet131" (Sanbi), "pet141" (Nibi),
-  // "pet146" (Ichibi).
-  //
-  // onAmfBuyItemResult @48-404 TIDAK menyimpan apa pun:
-  //     res.result -> kalau truthy DAN .equipped, pet langsung dipasang
-  //                   (parsePetData + initPet + muat swf/pets/<swfName>.swf)
-  //     Account.balance dikurangi petObj.token yang dibaca dari PET_DATA
-  //                   milik KLIEN, bukan dari balasan server
-  //     ownedTailArr.push(...), updateDetail, updateGoldDisplay
-  // Jadi tanpa handler ini pembelian cuma terlihat berhasil di layar lalu
-  // hilang saat muat ulang -- pola yang sama seperti gauntlet dulu.
-  //
-  // result dikirim null supaya blok pemasangan otomatis dilewati: pet baru
-  // disimpan tidak-terpasang, dan pemain memilihnya sendiri lewat panel Pets.
-  // Mengirim objek ber-equipped:true akan memaksa pet langsung aktif, dan
-  // pet ekor tanpa blok skill di data_library bisa membekukan pertarungan.
-  'Anni5th.buyPet': (args) => {
-    const mentah = String((args && args[1]) || '');
-    const id = mentah.replace(/^pet/, '');
-    if (!id) {
-      log('   buyPet: id pet tidak sah (' + mentah + ')');
-      return { status: 1, error: null, result: null };
-    }
-    const sudah = (chars.listPets() || []).some(p => String(p.id) === id);
-    if (sudah) {
-      log('   pet ' + id + ' sudah dimiliki, tidak ditambah lagi');
-    } else {
-      chars.addPet({ id, equipped: false });
-      log('   pet ekor dibeli: pet' + id +
-          ((args && args[2]) ? ' (' + args[2] + ')' : ''));
-    }
-    return { status: 1, error: null, result: null };
-  },
-
-  // Pet hadiah dari panel yang sama (confirmClaimPet @19).
-  'SpecialReward.claimPaymentPet': () => ({
-    status: 1, error: null, result: null, message: '',
-  }),
-
+  // Tailed Beast: tail numbers are 1..9, never array positions or sentinel 0.
   'Anni5th.getTailPet': () => ({
     status: 1, error: null, result: [],
-    // 1..9 = SEMUA ekor bisa dibeli; 0 di akhir = defaultPost (indeks 0).
-    //
-    // Angka 1-9 harus cocok dengan tailPetCanShowArr di panel. Panel ASLI
-    // hanya berisi [1,2,3,4], jadi Gobi..Kyubi tak pernah dibangun sama
-    // sekali -- tak ada tab, tak ada tombol beli. Itu batas KLIEN, tidak
-    // bisa dibuka dari sini: active_tail_number cuma disaring TERHADAP
-    // daftar tersebut.
-    //
-    // Dipakai bersama popup_tail_pet.swf yang sudah dipatch jadi [1..9]
-    // (skrip tail9.py). Kalau memakai panel asli, kembalikan ke
-    // [1, 2, 3, 4, 0] supaya elemen terakhir tetap indeks yang sah.
-    active_tail_number: [1, 2, 3, 4, 5, 6, 7, 8, 9, 0],
-    // Nomor ekor yang SUDAH dimiliki. setUpGetMethodBtn @94-117 menyembunyikan
-    // tombol payBtn untuk tiap nomor yang ada di sini, jadi kalau selalu
-    // dikirim kosong, pet yang sudah dibeli tetap tampak belum dimiliki dan
-    // bisa dibeli berulang kali.
-    //
-    // Dihitung dari koleksi pet karakter lewat peta tailPetArr milik panel:
-    //     ekor 1..9 -> pet146,141,131,86,74,73,71,68,65
+    active_tail_number: EKOR_KE_PET.map((_, i) => i + 1),
+    default_tail_number: 1,
     owned_tail_number: EKOR_KE_PET
       .map((petId, i) => ({ petId, ekor: i + 1 }))
-      .filter(x => (chars.listPets() || []).some(p => String(p.id) === String(x.petId)))
+      .filter(x => chars.listPets().some(p => String(p.id) === x.petId))
       .map(x => x.ekor),
+  }),
+
+  'Anni5th.buyPet': args => {
+    const id = String(args && args[1] || '').replace(/^pet/, '');
+    const data = require('./petdata').petById(id);
+    const current = activeCharacter();
+    if (!current || !EKOR_KE_PET.includes(id) || !data)
+      return { status: 0, error: 'Invalid Tailed Beast' };
+    if (chars.listPets().some(p => String(p.id) === id))
+      return { status: 0, error: 'You already own this pet.' };
+    const cost = Number(data.token);
+    if (!Number.isSafeInteger(cost) || cost < 0 || ACCOUNT.balance < cost)
+      return { status: 0, error: 'Not enough tokens.' };
+    const pet = {
+      id, name: data.name, level: 1, xp: 0, trained: [0], skills: [],
+      swfName: data.swfName, clsName: data.clsName, equipped: false,
+    };
+    const saved = chars.updateCharacter(current.character_id, c => {
+      c.pets ||= [];
+      if (c.pets.some(p => String(p.id) === id)) return false;
+      c.pets.push(pet);
+      c.token = Math.max(0, (Number(c.token) || 0) - cost);
+      c.utilityTokenSpent = (Number(c.utilityTokenSpent) || 0) + cost;
+    });
+    if (!saved) return { status: 0, error: 'Could not save the pet purchase.' };
+    ACCOUNT.balance -= cost;
+    const result = chars.petBuyResult(pet, ACCOUNT.sessionKey);
+    result.equipped = false;
+    log('   pet ekor dibeli: pet' + id + ' (' + data.name + '), ' + cost + ' token');
+    return {
+      status: 1, error: null, result,
+      balance: ACCOUNT.balance, total_token: saved.character.token,
+    };
+  },
+
+  // No payment entitlement is issued by the local server.
+  'SpecialReward.claimPaymentPet': () => ({
+    status: 0, error: 'No unclaimed payment pet reward is available.',
   }),
 
   // args: [sessionKey, characterId, tradingBodySet, tradingWeapon, ?, tradingBackItem, accessory]
@@ -2175,45 +2401,35 @@ const handlers = {
     // "b1e984fb..." di inventaris, tidak menemukan apa pun, dan barangnya
     // tetap ada saat login berikutnya.
     const id = args && args[1];
-    const n  = Math.max(1, Number(args && args[3]) || 1);
+    const n  = Number(args && args[3]);
     const h  = HARGA[String(id)];
-    const kembali = h ? Math.floor(h[0] / 2) * n : 0;
+    if (!h || !Number.isSafeInteger(n) || n < 1) {
+      return { status: 0, error: 'Barang atau jumlah penjualan tidak valid.' };
+    }
+    const kembali = Math.round((h[1] > 0 ? h[1] * 20 : h[0]) / 2) * n;
 
     const c = chars.removeItem(id, n, kembali);
-    if (!c) return { status: 1, error: null, result: 1 };
+    if (!c) return { status: 0, error: 'Barang tidak tersedia sebanyak jumlah yang dijual.' };
 
     log('   jual ' + id + ' x' + n + '  +' + kembali + ' gold' +
         '  -> gold=' + c.gold);
     return {
       status: 1, error: null, result: 1,
-      update_inventory: { xp: c.xp, gold: c.gold, token: c.token || 0 },
+      // ShopPanel.sellItemResponse menambahkan hasil jual di sisi klien.
+      update_inventory: {},
     };
   },
 
   'CharacterDAO.equipCharacter': (args) => {
-    // args: [sessionKey, characterId, bodySet, weapon, jutsuArr, backItem, accessory]
-    // args[4] adalah daftar jutsu yang DIPASANG di slot bertarung, mis.
-    // ["skill13","skill16"]. Klien membacanya kembali dari
-    // character_equipped_skills (@722, di-split ","), dan tanpa disimpan
-    // slot jutsu selalu kosong lagi setiap login.
+    // args[4] berisi objek slot bernomor seperti {"0":"skill82"}.
     const c = chars.setEquip(args && args[3], args && args[2],
-                             args && args[5], args && args[6], args && args[4]);
+                             args && args[5], args && args[6], args && args[4],
+                             args && args[1]);
     if (c) log('   equip -> ' + JSON.stringify(c.equip));
     return { status: 1, error: null };
   },
 
-  'EudemonGarden.getHuntingStatus': () => ({
-    status: 1, error: null,
-    result: { room: EUDEMON_ROOM.map(r => ({
-      boss:    r.boss,
-      rank:    r.rank || 1,
-      rewards: r.rewards || [],
-      status:  0,
-      time:    r.time == null ? 3 : r.time,
-      xp:      r.xp || 0,
-      gold:    r.gold || 0,
-    })) },
-  }),
+  'EudemonGarden.getHuntingStatus': () => eudemonGarden.getStatus(),
 
   'ItemDAO.getCharacterHuntingList': () => ({
     status: 1, error: null,
@@ -2229,20 +2445,129 @@ const handlers = {
   // bentuk balasan yang sama karena satu servis bisa dipanggil dari
   // jalur callback yang berbeda.
   'ItemDAO.startHunting':           () => ({ status: 1, error: null, result: 1 }),
+  'ItemDAO.forgeObject': (params) => {
+    const rawId = String((params && params[1]) || '');
+    log('ItemDAO.forgeObject diminta untuk item: ' + rawId);
+    const charId = chars.getActiveId() || '1';
+    const c = chars.characterById(charId);
+
+    if (rawId && c) {
+      if (rawId.startsWith('pet_') || rawId.startsWith('pet')) {
+        const num = rawId.replace(/^pet_?/, '');
+        chars.addPet(charId, num);
+      } else if (rawId.startsWith('wpn_') || rawId.startsWith('wpn')) {
+        const num = rawId.replace(/^wpn_?/, '');
+        if (!c.weapons) c.weapons = [];
+        if (!c.weapons.includes(num)) c.weapons.push(num);
+      } else if (rawId.startsWith('set_') || rawId.startsWith('set')) {
+        const num = rawId.replace(/^set_?/, '');
+        if (!c.bodysets) c.bodysets = [];
+        if (!c.bodysets.includes(num)) c.bodysets.push(num);
+      } else if (rawId.startsWith('back_') || rawId.startsWith('back')) {
+        const num = rawId.replace(/^back_?/, '');
+        if (!c.backitems) c.backitems = [];
+        if (!c.backitems.includes(num)) c.backitems.push(num);
+      } else if (rawId.startsWith('hair_') || rawId.startsWith('hair')) {
+        const num = rawId.replace(/^hair_?/, '');
+        if (!c.hairs) c.hairs = [];
+        if (!c.hairs.includes(num)) c.hairs.push(num);
+      } else if (rawId.startsWith('skill_') || rawId.startsWith('skill')) {
+        const num = rawId.replace(/^skill_?/, '');
+        if (!c.skills) c.skills = [];
+        if (!c.skills.includes(num)) c.skills.push(num);
+      } else if (rawId.startsWith('item_') || rawId.startsWith('item')) {
+        const num = rawId.replace(/^item_?/, '');
+        chars.addItem(charId, num);
+      }
+    }
+
+    return {
+      status: 1,
+      result: 1,
+      error: null,
+      materials: '',
+      already_upgrade: 0,
+    };
+  },
   'CharacterDAO.startHunting':      () => ({ status: 1, error: null, result: 1 }),
-  'EudemonGarden.startHunting':     () => ({ status: 1, error: null, result: 1 }),
-  'EudemonGarden.finishHunting':    () => balasanHadiah(),
+  'EudemonGarden.startHunting': (args) =>
+    eudemonGarden.start(chars.getActiveId(), args && args[1], args && args[5]),
+  'EudemonGarden.finishHunting': (args) => {
+    const response = eudemonGarden.finish(chars.getActiveId(), args && args[1], args && args[3]);
+    if (response.status !== 1) return response;
+    log('   Eudemon Garden room ' + args[1] + ': ' + response.reward.join(', '));
+    return balasanHadiah(response);
+  },
   'CharacterDAO.finishHunting':     () => balasanHadiah(),
-  'ValentinesDay2017.finishHunting': () => balasanHadiah(),
+  'ValentinesDay2017.finishHunting': (args) => selesaikanHadiahBos(args, 'Valentine'),
 
   'CharacterDAO.getSkillProfiles': () => ({
-    status: 1, error: null, result: [], data: {},
+    status: 1, error: null, profiles: chars.getSkillProfiles(),
   }),
 
-  'CharacterManagement.getInvHair': () => ({
-    status: 1, error: null, result: [],
-    inv_hair: [],
+  'CharacterDAO.saveSkillProfile': (args) => {
+    const jutsu = chars.setSkillProfile(args && args[1], args && args[2]);
+    if (!jutsu) return { status: 0, error: 'Profil jutsu tidak valid' };
+    log('   profil jutsu ' + args[1] + ' disimpan: ' + jutsu.join(','));
+    return { status: 1, error: null };
+  },
+
+  // Service data rambut untuk panel Style Shop
+  'SystemData.getHairData': () => ({
+    status: 1,
+    error: null,
+    result: HAIR_DATA,
+    hair_data: HAIR_DATA,
   }),
+
+  // Daftar rambut yang dimiliki karakter
+  'CharacterManagement.getInvHair': () => {
+    const activeId = chars.getActiveId() || 1;
+    const c = chars.characterById(activeId);
+    const owned = (c && Array.isArray(c.hairs)) ? c.hairs : [];
+    return {
+      status: 1,
+      error: null,
+      result: owned,
+      inv_hair: owned,
+    };
+  },
+
+  // Simpan perubahan tampilan (rambut, warna rambut, warna kulit) di Style Shop
+  'CharacterDAO.changeAppearance': (args) => {
+    // args: [sessionKey, charId, changedHair, changedHairColor, changedSkinColor]
+    const charId = args && args[1];
+    const hair = args && args[2];
+    const hairColor = args && args[3];
+    const skinColor = args && args[4];
+    const c = chars.changeAppearance(charId, hair, hairColor, skinColor);
+    if (c) {
+      log(`   ganti tampilan: char=${charId} hair=${hair} skinColor=${skinColor}`);
+    }
+    return { status: 1, error: null, result: 1 };
+  },
+
+  // Pembelian rambut dari panel Style Shop / Token
+  'CharacterManagement.buyHair': (args) => {
+    // args: [sessionKey, seq, hash, buyHairId]
+    const hairId = args && args[3];
+    const c = chars.buyHair(hairId);
+    if (c) {
+      log(`   beli rambut: hairId=${hairId}`);
+    }
+    return { status: 1, error: null, result: 1 };
+  },
+
+  // Penggantian rambut dari panel Style Shop / Token
+  'CharacterManagement.changeHair': (args) => {
+    // args: [sessionKey, seq, hash, hairId]
+    const hairId = args && args[3];
+    const c = chars.changeHair(hairId);
+    if (c) {
+      log(`   ubah gaya rambut: hairId=${hairId}`);
+    }
+    return { status: 1, error: null, result: 1 };
+  },
 
   'FacebookService.getInviteRecord': () => ({
     status: 1, error: null, result: [],
@@ -2264,12 +2589,33 @@ const handlers = {
   }),
 
   'FacebookService.getFriendList': () => ({
-    status: 1, error: null, result: [], friend_list: [],
+    status: 1, error: null, result: [],
+    friend_list: localFriends.friendList(),
+    char_list: localFriends.friendList(),
   }),
 
   'FacebookService.getFriendsData': () => ({
-    status: 1, error: null, result: [],
+    status: 1, error: null, result: localFriends.friendList(),
   }),
+
+  // Panel Mission dan Recruit Friends membaca karakter dari `result`.
+  // Daftar akun sosial dari getFriendList hanya dipakai untuk nama/foto.
+  'FacebookService.getRecruitRecord': (args) => ({
+    status: 1, error: null,
+    result: localFriends.characterRecords(args && args[1], chars.xpForLevel),
+  }),
+
+  'FacebookService.getChallengeRecord': (args) => ({
+    status: 1, error: null,
+    result: localFriends.characterRecords(args && args[1], chars.xpForLevel),
+  }),
+
+  'FacebookService.payToRecruit': (args) => {
+    const friend = localFriends.byId(args && args[1]);
+    if (!friend) return { status: 1, error: null, failreason: 'Teman lokal tidak ditemukan.' };
+    log('   rekrut teman lokal: ' + friend.name + ' (id=' + friend.id + ')');
+    return { status: 1, error: null, result: 1 };
+  },
 
   // Alokasi attribute point
   // Character.updateAP mengirim TOTAL poin elemen, bukan selisih:
@@ -2283,6 +2629,18 @@ const handlers = {
     if (c) log('   poin elemen -> api=' + c.elements[0] + ' air=' + c.elements[1] +
                ' angin=' + c.elements[2] + ' tanah=' + c.elements[3] +
                ' petir=' + c.elements[4]);
+    return { status: 1, error: null, result: 1 };
+  },
+
+  'CharacterDAO.saveResetAP': () => {
+    const c = chars.setElements([0, 0, 0, 0, 0]);
+    if (c) log('   reset AP -> semua elemen direset ke 0 (Point Left = ' + c.level + ')');
+    return { status: 1, error: null, result: 1 };
+  },
+
+  'CharacterDAO.resetAPbyToken': () => {
+    const c = chars.setElements([0, 0, 0, 0, 0]);
+    if (c) log('   reset AP (token) -> semua elemen direset ke 0 (Point Left = ' + c.level + ')');
     return { status: 1, error: null, result: 1 };
   },
 
@@ -2422,13 +2780,21 @@ const handlers = {
   //     if (r < 0)  { trainSkillFailure(); return; }
   //     if (r == 0) { trainSkillSuccess(); ... }
   //
-  // trainSkillSuccess() memotong gold/token di sisi KLIEN saja dan tidak
-  // menambahkan skill ke dbChar.character_skills — daftar itu hanya diisi
-  // ulang dari respons server saat login. Karena itu skill harus disimpan
-  // di sini, atau hilang tiap kali keluar-masuk game.
+  // Klien mengurangi saldo di layar setelah respons sukses. Simpan biaya dan
+  // skill bersama-sama di server, tanpa mengirim saldo lagi dalam respons.
   'CharacterDAO.trainSkill': (args) => {
-    const c = chars.addSkill(args && args[1]);
-    if (c) log('   pelajari skill: ' + args[1] + '  -> [' + c.skills.join(',') + ']');
+    const id = String(args && args[1]);
+    const price = HARGA[id];
+    if (!price || !id.startsWith('skill')) {
+      return { status: 0, error: 'Harga jutsu tidak tersedia.' };
+    }
+    if (args && args[3] === 'fk') {
+      return { status: 0, error: 'Pembayaran Friendship Kunai belum tersedia.' };
+    }
+    const result = chars.buyAcademySkill(id, price[0], price[1], ACCOUNT.balance);
+    if (result.error) return { status: 0, error: result.error };
+    ACCOUNT.balance -= price[1];
+    log('   pelajari skill: ' + id + '  -' + price[0] + ' gold  -' + price[1] + ' token');
     return { status: 1, error: null, recall: 1, result: 0 };
   },
 
@@ -2455,9 +2821,33 @@ const handlers = {
     status: -1, error: null, result: [],
   }),
 
-  'CharacterService.selectFreeSkill': () => ({
-    status: 1, error: null, result: 1,
-  }),
+  'CharacterService.selectFreeSkill': (args) => {
+    const starter = { skill1: 4, skill9: 1, skill10: 0, skill12: 3, skill13: 2 };
+    const skill = String(args && args[1]);
+    const id = chars.getActiveId();
+    const c = id && chars.characterById(id);
+    if (c && c.tutorialPending === true && Object.hasOwn(starter, skill)) {
+      chars.updateCharacter(id, character => {
+        const skillId = skill.slice(5);
+        character.skills ||= [];
+        if (!character.skills.includes(skillId)) character.skills.push(skillId);
+        character.equip ||= {};
+        character.equip.jutsu ||= [];
+        if (!character.equip.jutsu.includes(skillId)) character.equip.jutsu.push(skillId);
+        character.elements = [0, 0, 0, 0, 0];
+        character.elements[starter[skill]] = 1;
+        character.starterElement = starter[skill];
+        if (character.tutorialBattleFinished === true) {
+          character.xp = Math.max(1, Number(character.xp) || 0);
+          character.tutorialPending = false;
+          character.tutorialCompleted = true;
+        }
+      });
+      log('   ' + (c.tutorialBattleFinished ? 'tutorial selesai: ' : 'elemen tutorial dipilih: ') +
+          c.name + ' memilih ' + skill);
+    }
+    return { status: 1, error: null, result: 1 };
+  },
 
   // --- Misi ---------------------------------------------------
 
@@ -2481,6 +2871,7 @@ const handlers = {
   //                                       lalu level dihitung ulang klien
   //                                       lewat Formula.getLvByXp()
   'CharacterService.updateCharacter': (args) => {
+    const characterId = args && args[1];
     const xpGain   = Number(args && args[3]) || 0;
     const goldGain = Number(args && args[4]) || 0;
 
@@ -2490,7 +2881,7 @@ const handlers = {
     // (mis. ujian Chuunin) mengulang dari tahap pertama.
     const missionId = args && args[8];
     if (missionId) {
-      const m = chars.recordMission(missionId);
+      const m = chars.recordMission(missionId, true, characterId);
       if (m) {
         log('   misi selesai: msn' + m.no +
             '  success=' + m.entry.success +
@@ -2529,7 +2920,7 @@ const handlers = {
       }
     }
 
-    const hasil = chars.addProgress(xpGain, goldGain);
+    const hasil = chars.addProgress(xpGain, goldGain, characterId);
     if (!hasil) {
       log('   !! updateCharacter tapi belum ada karakter tersimpan');
       return { status: 1, error: null, maintenance: 0, reward_items: [] };
@@ -2553,13 +2944,7 @@ const handlers = {
     };
   },
 
-  'ItemDAO.getBossReward': () => {
-    // Klien hanya MENAMPILKAN isi reward; penyimpanannya tugas server.
-    for (const h of barangHadiah()) {
-      try { beriHadiah(h); } catch (e) { log('   !! hadiah ' + h + ': ' + e.message); }
-    }
-    return balasanHadiah();
-  },
+  'ItemDAO.getBossReward': (args) => selesaikanHadiahBos(args, 'Boss'),
 
   // Dipanggil layar pembuatan/pemilihan karakter.
   // args: [sessionKey, TEST_VERSION]
@@ -2582,8 +2967,9 @@ const handlers = {
   //     if (EventStatus < indeksChapter) -> gotoAndStop('locked') + "coming soon"
   //     else                             -> gotoAndStop('enable') + tombol StoryBtn
   //
-  // Jadi story_status = nomor chapter TERTINGGI yang terbuka. Nilai 3 membuka
-  // chapter 1, 2, dan 3; chapter 4 tetap terkunci. Ubah ke 4 kalau mau semua.
+  // Jadi story_status = nomor chapter TERTINGGI yang terbuka. Chapter 4
+  // sudah berisi cerita di SWF; tombol Battle dan Material House membuka
+  // panel umum yang terpisah dari keempat tombol cerita.
   'SkillPackageLimit.getPackageStatus': () => ({
     status: 1, error: null,
     result: {
@@ -2618,7 +3004,7 @@ const handlers = {
 
   'GenzusEvent.getStoryStatus': () => ({
     status: 1, error: null,
-    story_status: 3,
+    story_status: 4,
     reward_status: 0,
   }),
 
@@ -2652,11 +3038,8 @@ const handlers = {
   // tidak pernah tercapai. Objek kosong {} lolos: truthy, dan .train-nya
   // undefined sehingga blok timer dilewati.
   //
-  // PENTING: klien TIDAK menyimpan pembelian ini sendiri. Sesudah
-  // "Purchase Successful~" ia cuma memanggil loadPanelContent() lalu
-  // memeriksa hasItem('wpn1596') dari inventaris yang dimuat saat login.
-  // Jadi kalau server tidak menambahkan barangnya, pembelian terlihat
-  // berhasil tapi hilang begitu muat ulang -- persis gejalanya.
+  // Panel memanggil loadPanelContent() setelah pembelian; inventaris klien
+  // harus diperbarui lewat update_inventory.add_item_id sebelum callback itu.
   // Tiga servis upgrade di panel yang sama. Argumennya (confirmU @28-35,
   // confirmUnlockPower @28, confirmLearnSlotSkill @28-35):
   //     GodSnap.upgradeWeapon   [sessionKey, btnNum - 10]   -> slot 1..6
@@ -2677,61 +3060,182 @@ const handlers = {
   // stateGauntlet() di chardata.js). Tanpa itu upgrade hilang tiap login.
   'GodSnap.upgradeWeapon': (args) => {
     const slot = Number(args && args[1]);
-    if (!(slot >= 1 && slot <= 6)) {
-      log('   upgradeWeapon: slot tidak sah (' + slot + ')');
-      return { status: 1, error: null, result: false };
-    }
-    // Nilai 2, bukan 1. setPanelContent @1946-1956 menguji
-    //     stateObj<N> == 2
-    // untuk menandai slot yang SUDAH ter-implant (tombolnya lalu dimatikan).
-    // Nilai 1 akan tampak seperti belum ter-implant.
-    const g = chars.setGauntlet('slot', slot - 1, 2);
-    log('   gauntlet slot ' + slot + ' di-implant -> ' +
-        (g ? g.slot.join(',') : 'gagal'));
-    return { status: 1, error: null, result: {},
-             stateInv: { 'wpn_1596': (g ? g.slot : [0,0,0,0,0,0]).join(',') } };
+    const stoneId = BATU_GAUNTLET[slot - 1];
+    const goldCost = [100000, 200000, 300000, 400000, 500000, 700000][slot - 1];
+    if (!Number.isInteger(slot) || !stoneId)
+      return { status: 0, error: 'Invalid gauntlet slot' };
+
+    const id = chars.getActiveId();
+    const current = id && chars.characterById(id);
+    if (!current || !(current.weapons || []).map(String).includes('1596'))
+      return { status: 0, error: 'Gauntlet not owned' };
+    if (Number((current.gauntlet && current.gauntlet.slot || [])[slot - 1]) > 0)
+      return { status: 0, error: 'Stone already implanted' };
+    if (Number((current.materials || {})[stoneId]) < 220 || Number(current.gold) < goldCost)
+      return { status: 0, error: 'Not enough stones or gold' };
+
+    const saved = chars.updateCharacter(id, c => {
+      c.gauntlet ||= { slot: [0, 0, 0, 0, 0, 0], power: 0, slotSkill: [0, 0, 0, 0, 0, 0] };
+      if (Number(c.gauntlet.slot[slot - 1]) > 0 ||
+          Number((c.materials || {})[stoneId]) < 220 || Number(c.gold) < goldCost)
+        return false;
+      c.gauntlet.slot[slot - 1] = 1;
+      c.materials[stoneId] -= 220;
+      c.gold -= goldCost;
+    });
+    if (!saved) return { status: 0, error: 'Gauntlet upgrade failed' };
+    const c = saved.character;
+    log('   gauntlet slot ' + slot + ' di-implant -> ' + c.gauntlet.slot.join(','));
+    return {
+      status: 1, error: null, result: {},
+      stateInv: chars.stateGauntlet(c),
+      update_inventory: {
+        gold: c.gold,
+        token: c.token || 0,
+        remove_item_id: ['item' + stoneId + '_220'],
+      },
+    };
   },
 
   'GodSnap.unlockPower': () => {
-    const g = chars.setGauntlet('power', 0, 1);
-    log('   gauntlet power dibuka' + (g ? '' : ' (gagal)'));
-    return { status: 1, error: null, result: {} };
+    const id = chars.getActiveId();
+    const current = id && chars.characterById(id);
+    const cost = ACCOUNT.type === 2 ? 639 : 799;
+    if (!current || Number(current.gauntlet && current.gauntlet.power) > 0 ||
+        (current.gauntlet && current.gauntlet.slot || []).length !== 6 ||
+        !current.gauntlet.slot.every(x => Number(x) > 0) ||
+        !['903', '904', '905', '906', '907', '926'].every(x =>
+          (current.skills || []).map(String).includes(x)) ||
+        BATU_GAUNTLET.some(x => Number((current.materials || {})[x]) < 70) ||
+        Number(current.gold) < 6000000 || Number(current.token) < cost ||
+        ACCOUNT.balance < cost)
+      return { status: 0, error: 'Gauntlet power requirements not met' };
+    const saved = chars.updateCharacter(id, c => {
+      if (Number(c.gauntlet.power) > 0) return false;
+      c.gauntlet.power = 1;
+      c.skills ||= [];
+      if (!c.skills.map(String).includes('908')) c.skills.push('908');
+      for (const stoneId of BATU_GAUNTLET) c.materials[stoneId] -= 70;
+      c.gold -= 6000000;
+      c.token -= cost;
+      c.utilityTokenSpent = (Number(c.utilityTokenSpent) || 0) + cost;
+    });
+    if (!saved) return { status: 0, error: 'Gauntlet power unlock failed' };
+    ACCOUNT.balance -= cost;
+    const c = saved.character;
+    return {
+      status: 1, error: null, result: {},
+      stateInv: chars.stateGauntlet(c),
+      update_inventory: {
+        add_item_id: ['skill908'],
+        remove_item_id: BATU_GAUNTLET.map(x => 'item' + x + '_70'),
+        showPopup: false,
+        gold: c.gold,
+        token: ACCOUNT.balance,
+        total_token: c.token,
+      },
+    };
   },
 
   'GodSnap.learnSlotSkill': (args) => {
     const slot = Number(args && args[1]);
-    if (!(slot >= 1 && slot <= 6)) {
-      log('   learnSlotSkill: slot tidak sah (' + slot + ')');
-      return { status: 1, error: null, result: false };
-    }
-    const g = chars.setGauntlet('slotSkill', slot - 1, 1);
-    log('   gauntlet slot skill ' + slot + ' dipelajari -> ' +
-        (g ? g.slotSkill.join(',') : 'gagal'));
-    return { status: 1, error: null, result: {} };
+    const skills = ['903', '904', '905', '906', '907', '926'];
+    const costs = ACCOUNT.type === 2
+      ? [1399, 1599, 1279, 1199, 1279, 1279]
+      : [1799, 1999, 1599, 1499, 1599, 1599];
+    const skillId = skills[slot - 1];
+    const stoneId = BATU_GAUNTLET[slot - 1];
+    const cost = costs[slot - 1];
+    const id = chars.getActiveId();
+    const current = id && chars.characterById(id);
+    if (!Number.isInteger(slot) || !skillId || !current ||
+        !(current.weapons || []).map(String).includes('1596') ||
+        Number((current.gauntlet && current.gauntlet.slot || [])[slot - 1]) <= 0 ||
+        (current.skills || []).map(String).includes(skillId) ||
+        Number((current.materials || {})[stoneId]) < 150 ||
+        Number(current.token) < cost || ACCOUNT.balance < cost)
+      return { status: 0, error: 'Gauntlet skill requirements not met' };
+
+    const saved = chars.updateCharacter(id, c => {
+      c.skills ||= [];
+      if (c.skills.map(String).includes(skillId) ||
+          Number((c.materials || {})[stoneId]) < 150 || Number(c.token) < cost)
+        return false;
+      c.skills.push(skillId);
+      c.gauntlet.slotSkill ||= [0, 0, 0, 0, 0, 0];
+      c.gauntlet.slotSkill[slot - 1] = 1;
+      c.materials[stoneId] -= 150;
+      c.token -= cost;
+      c.utilityTokenSpent = (Number(c.utilityTokenSpent) || 0) + cost;
+    });
+    if (!saved) return { status: 0, error: 'Gauntlet skill purchase failed' };
+    ACCOUNT.balance -= cost;
+    const c = saved.character;
+    log('   gauntlet skill' + skillId + ' dipelajari');
+    return {
+      status: 1, error: null, result: {},
+      stateInv: chars.stateGauntlet(c),
+      update_inventory: {
+        add_item_id: ['skill' + skillId],
+        remove_item_id: ['item' + stoneId + '_150'],
+        showPopup: false,
+        gold: c.gold,
+        token: ACCOUNT.balance,
+        total_token: c.token,
+      },
+    };
   },
 
   'GodSnap.buyPackage': () => {
     const c = chars.characterById(chars.getActiveId()) || chars.firstCharacter();
     if (!c) return { status: 1, error: null, result: false };
+    const cost = ACCOUNT.type === 2 ? 1039 : 1299;
     if (!(Array.isArray(c.weapons) && c.weapons.includes('1596'))) {
+      if ((c.token || 0) >= cost) c.token -= cost;
       chars.addItem('wpn1596', 1);
-      log('   gauntlet dibeli: wpn1596');
+      log('   gauntlet dibeli: wpn1596 (-' + cost + ' token)');
     } else {
       log('   gauntlet sudah dimiliki, tidak ditambah lagi');
     }
-    return { status: 1, error: null, result: {} };
+    return {
+      status: 1,
+      error: null,
+      result: {},
+      stateInv: chars.stateGauntlet(c),
+      update_inventory: {
+        add_item_id: ['wpn1596'],
+        showPopup: false,
+        token: c.token,
+        total_token: c.token,
+        gold: c.gold,
+      },
+    };
   },
 
   'GodSnap.buySkillPackage': () => {
     const c = chars.characterById(chars.getActiveId()) || chars.firstCharacter();
     if (!c) return { status: 1, error: null, result: false };
+    const cost = ACCOUNT.type === 2 ? 1899 : 2399;
     if (!(Array.isArray(c.skills) && c.skills.map(String).includes('902'))) {
+      if ((c.token || 0) >= cost) c.token -= cost;
       chars.addSkill('902');
-      log('   kinjutsu dibeli: skill902 (Unstoppable Rage)');
+      log('   kinjutsu dibeli: skill902 (Unstoppable Rage, -' + cost + ' token)');
     } else {
       log('   kinjutsu sudah dimiliki, tidak ditambah lagi');
     }
-    return { status: 1, error: null, result: {} };
+    return {
+      status: 1,
+      error: null,
+      result: {},
+      stateInv: chars.stateGauntlet(c),
+      update_inventory: {
+        add_item_id: ['skill902'],
+        showPopup: false,
+        token: c.token,
+        total_token: c.token,
+        gold: c.gold,
+      },
+    };
   },
 
   'SystemData.get': () => ({
@@ -2954,7 +3458,13 @@ function findDonor(dir) {
 }
 
 function cloneOrStub(dir, name) {
-  const donor = findDonor(dir);
+  // Dua NPC rekrut ini tidak ada di koleksi aset. Pakai donor yang berbeda
+  // agar Gekko dan Ryuma tidak sama-sama tampil sebagai npc_2.
+  const npcDir = path.join(WEB_ROOT, 'cdn', 'swf', 'latest', 'swf', 'npc');
+  const npcDonor = path.resolve(dir) === npcDir &&
+    ({ npc_3: 'npc_5.swf', npc_4: 'npc_6.swf' })[name];
+  const preferred = npcDonor && path.join(dir, npcDonor);
+  const donor = preferred && fs.existsSync(preferred) ? preferred : findDonor(dir);
   if (donor) {
     try {
       // nama berkas donor ikut dikirim supaya cloneFrom bisa memilih simbol
@@ -2996,6 +3506,13 @@ function catatHttp(req, res) {
 }
 
 const server = http.createServer((req, res) => {
+  // Tangani permintaan Trainer Web Dashboard & API
+  try {
+    if (trainer.handleRequest(req, res)) return;
+  } catch (e) {
+    log('!! ERROR TRAINER: ' + (e && e.stack ? e.stack : String(e)));
+  }
+
   if (req.method !== 'POST') {
     // Dibungkus: satu URL aneh (mis. %-escape rusak yang membuat
     // decodeURIComponent melempar) dulu cukup untuk MEMATIKAN proses Node,
@@ -3039,7 +3556,11 @@ const server = http.createServer((req, res) => {
       log('AMF ->', b.target, '  (responseURI=' + b.response + ', amf3=' + b.amf3 + ')');
       log('   argumen:', b.data);
       const result = dispatch(b.target, b.data);
-      log('   balasan:', result);
+      if (b.target === 'SystemData.getHairData') {
+        log('   balasan: [SystemData.getHairData: ' + (result.hair_data ? result.hair_data.length : 0) + ' items]');
+      } else {
+        log('   balasan:', result);
+      }
       out.push({ target: (b.response || '/1') + '/onResult', response: '', data: result });
     }
     const body = encodePacket(out, amf3);
@@ -3092,4 +3613,5 @@ server.listen(PORT, '127.0.0.1', () => {
   log('### ninja_saga.swf : ' + (fs.existsSync(cek) ? 'ADA' : 'TIDAK ADA di ' + cek));
   log('### signature login = ' + signAccount(ACCOUNT));
   log('### ninja emblem = ' + (ACCOUNT.type === 2 ? 'AKTIF (premium)' : 'mati (biasa)'));
+  log('### Trainer Dashboard : http://127.0.0.1:' + PORT + '/trainer');
 });

@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Impor Senjata — Ninja Saga</title>
+<style>
+:root{color-scheme:dark;--bg:#0b0d13;--surface:#141722;--border:#303748;--muted:#a0aec0;--text:#f3f4f6;--accent:#dc2626}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}main{max-width:1040px;margin:36px auto;padding:0 20px}a{color:#fca5a5}header{margin-bottom:26px}h1{font-size:30px;margin:8px 0}h2{font-size:20px;margin:0 0 16px}p{margin:8px 0;color:var(--muted)}.layout{display:grid;grid-template-columns:1fr 1fr;gap:20px}.panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:20px}label{display:block;font-weight:600;margin:14px 0 5px}input,textarea,select,button{font:inherit}input:not([type=checkbox]),textarea,select{width:100%;color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:10px}textarea{resize:vertical}input[type=file]{font-size:13px}input:focus,textarea:focus,select:focus,button:focus-visible{outline:2px solid #fca5a5;outline-offset:2px}.row{display:grid;grid-template-columns:1fr 1fr;gap:14px}button{border:1px solid transparent;border-radius:7px;background:var(--accent);color:white;font-weight:600;padding:11px 17px;cursor:pointer}button.secondary{background:#252c3c;border-color:var(--border)}button:disabled{opacity:.5;cursor:wait}.full{width:100%;margin-top:18px}.note{font-size:13px;color:var(--muted)}canvas{width:100%;height:auto;display:block;cursor:crosshair;border:1px solid var(--border);border-radius:8px;margin-top:14px}.status{min-height:28px;margin-top:16px;white-space:pre-wrap}.error{color:#fca5a5}.success{color:#6ee7b7}.item{display:grid;grid-template-columns:76px 1fr;gap:16px;padding:18px 0;border-top:1px solid var(--border)}.item img{width:76px;height:90px;object-fit:contain;background:#0b0d13;border-radius:7px}.item strong{display:block}.item button{padding:7px 12px;margin-top:10px}.item small{color:var(--muted)}.check{font-size:14px;display:flex;gap:9px;align-items:center;font-weight:400}summary{cursor:pointer;color:#d1d5db;margin-top:18px}code{font-size:13px}progress{width:100%;height:7px;display:none;margin-top:15px}@media(max-width:740px){.layout{grid-template-columns:1fr}main{margin-top:20px}.panel{padding:18px}}
+
+#preview{cursor:grab;touch-action:none}#preview.dragging{cursor:grabbing}#sourcePreview{cursor:crosshair;touch-action:none}.editor-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.editor-toolbar button{font-size:13px;padding:9px 11px;min-height:40px}.editor-toolbar select{width:auto;flex:1;min-width:120px}.range-row{display:grid;grid-template-columns:1fr 90px;gap:12px;align-items:center}.range-row input[type=range]{padding:0;accent-color:#f87171}.editor-help{color:#cbd5e1}.editor-pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#a0aec0}.editor-dot{width:8px;height:8px;border-radius:50%;background:#6ee7b7}
+</style>
+</head>
+<body><main>
+<header><a href="/trainer">← Kembali ke Trainer</a><h1>Impor senjata buatan sendiri</h1><p>Masukkan gambar dan data senjata ke game lokal, lalu berikan ke karakter pilihan Anda.</p></header>
+<div class="layout">
+<section class="panel"><h2>1. Buat senjata</h2>
+<form id="importForm">
+<label for="image">PNG transparan</label><input id="image" type="file" accept="image/png" required><p class="note">Maksimal 4096 × 4096 piksel dan 5 MB. Gambar ini menjadi senjata dan ikon Gear.</p>
+<div class="editor-toolbar"><select id="pose" aria-label="Pose model"><option value="battle">Pose bertarung</option><option value="profile">Pose profil</option></select><button type="button" id="snapHand" class="secondary">Ke titik tangan</button><button type="button" id="undoPosition" class="secondary" disabled>Urungkan</button></div>
+<canvas id="preview" width="640" height="520" tabindex="0" aria-label="Editor posisi senjata pada model karakter. Seret senjata untuk menggeser. Gunakan tombol panah untuk menggeser satu unit, Shift dan panah untuk sepuluh unit."></canvas>
+<p class="note editor-help">Seret senjata ke tangan. Tarik bulatan biru untuk memutar atau kotak biru untuk mengubah ukuran. Tombol panah menggeser lebih presisi.</p><span class="editor-pill"><span class="editor-dot"></span>Titik hijau = titik tangan · Model standar game</span>
+<div class="row"><div><label for="offsetX">Geser X</label><input id="offsetX" type="number" min="-200" max="200" step="0.1" value="0"></div><div><label for="offsetY">Geser Y</label><input id="offsetY" type="number" min="-200" max="200" step="0.1" value="0"></div></div>
+<label for="rotation">Rotasi</label><div class="range-row"><input id="rotationRange" type="range" min="-180" max="180" step="1" value="0" aria-label="Putar senjata"><input id="rotation" type="number" min="-180" max="180" step="0.1" value="0"></div>
+<label for="displayHeight">Ukuran di game</label><div class="range-row"><input id="heightRange" type="range" min="20" max="350" value="120" aria-label="Ubah ukuran senjata"><input id="displayHeight" type="number" min="20" max="350" step="0.1" value="120"></div>
+<div class="editor-toolbar"><button type="button" id="flipHorizontal" class="secondary" aria-pressed="false">Balik horizontal</button><button type="button" id="flipVertical" class="secondary" aria-pressed="false">Balik vertikal</button><button type="button" id="resetPosition" class="secondary">Reset posisi</button></div>
+<div id="positionStatus" class="note" role="status" aria-live="polite"></div>
+<label for="name">Nama senjata</label><input id="name" maxlength="80" placeholder="Contoh: Pedang Bayangan" required>
+<div class="row"><div><label for="damage">Damage</label><input id="damage" type="number" min="0" max="32767" value="100" required></div><div><label for="level">Level minimum</label><input id="level" type="number" min="1" max="99" value="1" required></div></div>
+<label for="description">Deskripsi</label><textarea id="description" rows="2" maxlength="500"></textarea>
+<details><summary>Titik pegangan pada gambar dan animasi</summary><canvas id="sourcePreview" width="480" height="220" aria-label="Klik gagang pada gambar sumber untuk memilih titik pegangan."></canvas><p class="note">Klik gagang pada gambar sumber. Penanda merah akan menempel di titik tangan saat X dan Y bernilai 0.</p>
+<div class="row"><div><label for="pivotX">Pegangan X (%)</label><input id="pivotX" type="number" min="0" max="100" step="0.1" value="50"></div><div><label for="pivotY">Pegangan Y (%)</label><input id="pivotY" type="number" min="0" max="100" step="0.1" value="85"></div></div>
+
+<label for="animation">Gerakan serangan</label><select id="animation"><option value="attack_1">Standar (attack_1)</option><option value="attack_2">attack_2</option><option value="attack_3">attack_3</option><option value="attack_4">attack_4</option><option value="attack_5">attack_5</option><option value="attack_6">attack_6</option><option value="attack_7">attack_7</option><option value="attack_8">attack_8</option><option value="attack_9">attack_9</option><option value="attack_10">attack_10</option></select>
+</details>
+<button class="full" id="importButton" type="submit">Impor senjata</button><button type="button" id="cancelEdit" class="secondary full" hidden>Batal mengatur posisi</button><progress id="progress" aria-label="Sedang mengimpor"></progress>
+</form><div id="importStatus" class="status" role="status" aria-live="polite"></div><p class="note">Impor membuat senjata satu tangan dari gambar statis. Gerakan mengikuti animasi karakter. ID diberikan otomatis; katalog lama dicadangkan sebelum diperbarui.</p>
+</section>
+<section class="panel"><h2>2. Berikan ke karakter</h2>
+<label for="character">Karakter tujuan</label><select id="character"></select>
+<label class="check"><input id="equip" type="checkbox">Langsung pasang jika level memenuhi syarat</label>
+<p class="note">Setelah diberikan, buka ulang game agar katalog baru termuat. Senjata berada di Gear → Weapons.</p>
+<button id="reload" type="button" class="secondary" style="margin-top:12px">Muat ulang daftar</button>
+<div id="grantStatus" class="status" role="status" aria-live="polite"></div><div id="weapons"><p>Memuat daftar…</p></div>
+</section></div>
+</main><script src="/trainer/weapons/editor/weapon-position.js"></script><script>
+'use strict';
+const $ = id => document.getElementById(id);
+let imageData = '', image = null, imageBox = null, importing = false;
+let rig = null, poseImages = {}, geometry = null, drag = null, flipX = false, flipY = false;
+let editingWeaponId = null;
+const history = [], WP = WeaponPosition;
+const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+function position() { return { pivotX: Number($('pivotX').value) / 100, pivotY: Number($('pivotY').value) / 100, displayHeight: Number($('displayHeight').value), rotation: Number($('rotation').value), offsetX: Number($('offsetX').value), offsetY: Number($('offsetY').value), flipX, flipY }; }
+function remember() { history.push(position()); if(history.length > 30) history.shift(); $('undoPosition').disabled = false; }
+function restore(value) { for(const id of ['displayHeight','rotation','offsetX','offsetY']) $(id).value = value[id]; $('pivotX').value = value.pivotX * 100; $('pivotY').value = value.pivotY * 100; flipX = value.flipX; flipY = value.flipY; draw(); }
+function announce() { $('positionStatus').textContent = 'Posisi tersimpan untuk impor: X ' + $('offsetX').value + ', Y ' + $('offsetY').value + ' · ' + $('rotation').value + '°.'; }
+function message(id, text, error = false) { $(id).textContent = text; $(id).className = 'status ' + (error ? 'error' : 'success'); }
+async function api(url, options) {
+  const response = await fetch(url, options); const data = await response.json();
+  if (!response.ok || !data.success) throw new Error(data.message || 'Permintaan gagal.'); return data;
+}
+const post = (url, data) => api(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+function background(context, width, height) {
+  context.setTransform(1,0,0,1,0,0);
+  for(let y=0;y<height;y+=20)for(let x=0;x<width;x+=20){context.fillStyle=(x/20+y/20)%2?'#202635':'#1b2130';context.fillRect(x,y,20,20);}
+}
+function drawSource() {
+  const context = $('sourcePreview').getContext('2d'); background(context,480,220); imageBox = null;
+  if(!image)return;
+  const scale=Math.min(440/image.width,180/image.height),w=image.width*scale,h=image.height*scale,x=(480-w)/2,y=(220-h)/2;
+  imageBox={x,y,w,h};context.drawImage(image,x,y,w,h);
+  const px=x+w*Number($('pivotX').value)/100,py=y+h*Number($('pivotY').value)/100;
+  context.strokeStyle='#ff6b6b';context.lineWidth=2;context.beginPath();context.arc(px,py,7,0,Math.PI*2);context.moveTo(px-14,py);context.lineTo(px+14,py);context.moveTo(px,py-14);context.lineTo(px,py+14);context.stroke();
+}
+function holderName() { return $('animation').value === 'attack_10' ? 'handweapon' : 'weapon'; }
+function draw() {
+  $('heightRange').value=$('displayHeight').value; $('rotationRange').value=$('rotation').value;
+  $('flipHorizontal').setAttribute('aria-pressed',String(flipX)); $('flipVertical').setAttribute('aria-pressed',String(flipY));
+  const context=$('preview').getContext('2d'); background(context,640,520); geometry=null;
+  const pose=$('pose').value,host=holderName(),layers=poseImages[pose+'-'+host];
+  if(!rig||!layers){context.fillStyle='#a0aec0';context.font='16px sans-serif';context.textAlign='center';context.fillText('Memuat model karakter…',320,260);drawSource();return;}
+  context.drawImage(layers.back,0,0);
+  const holder=rig.poses[pose][host],hand=WP.point(holder,{x:0,y:0});
+  if(image){
+    const settings=position(),transform=WP.compose(holder,WP.matrix(image.width,image.height,settings));
+    context.save();context.setTransform(transform.a,transform.b,transform.c,transform.d,transform.tx,transform.ty);context.drawImage(image,0,0);context.restore();
+    const points=[{x:0,y:0},{x:image.width,y:0},{x:image.width,y:image.height},{x:0,y:image.height}].map(p=>WP.point(transform,p));
+    const grip=WP.point(holder,{x:settings.offsetX,y:settings.offsetY});
+    const center=WP.point(transform,{x:image.width/2,y:image.height/2});
+    const top=WP.point(transform,{x:image.width/2,y:0}),length=Math.hypot(top.x-center.x,top.y-center.y)||1;
+    const rotate={x:top.x+(top.x-center.x)/length*28,y:top.y+(top.y-center.y)/length*28};
+    geometry={transform,holder,grip,hand,points,rotate,resize:points[2]};
+  }
+  context.drawImage(layers.front,0,0);
+  context.lineWidth=2;context.strokeStyle='#6ee7b7';context.beginPath();context.arc(hand.x,hand.y,7,0,Math.PI*2);context.moveTo(hand.x-13,hand.y);context.lineTo(hand.x+13,hand.y);context.moveTo(hand.x,hand.y-13);context.lineTo(hand.x,hand.y+13);context.stroke();
+  if(geometry){
+    const {points,grip,rotate,resize}=geometry;
+    context.save();context.strokeStyle='#93c5fd';context.lineWidth=1.5;context.setLineDash([5,4]);context.beginPath();points.forEach((p,i)=>i?context.lineTo(p.x,p.y):context.moveTo(p.x,p.y));context.closePath();context.stroke();context.setLineDash([]);
+    const top={x:(points[0].x+points[1].x)/2,y:(points[0].y+points[1].y)/2};context.beginPath();context.moveTo(top.x,top.y);context.lineTo(rotate.x,rotate.y);context.stroke();
+    context.fillStyle='#2563eb';context.beginPath();context.arc(rotate.x,rotate.y,9,0,Math.PI*2);context.fill();context.stroke();context.fillRect(resize.x-8,resize.y-8,16,16);context.strokeRect(resize.x-8,resize.y-8,16,16);
+    context.fillStyle='#ff6b6b';context.beginPath();context.arc(grip.x,grip.y,4,0,Math.PI*2);context.fill();context.restore();
+  }else{context.fillStyle='#cbd5e1';context.font='15px sans-serif';context.textAlign='center';context.fillText('Unggah PNG untuk menempatkan senjata',320,495);}
+  drawSource();
+}
+async function loadRig() {
+  rig=await (await fetch('/trainer/weapons/editor/rig.json')).json();
+  for(const pose of ['battle','profile'])for(const holder of ['weapon','handweapon']){
+    const layers={};await Promise.all(['back','front'].map(async layer=>{
+      const img=new Image();await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=reject;img.src='/trainer/weapons/editor/'+pose+'-'+holder+'-'+layer+'.png';});layers[layer]=img;
+    }));poseImages[pose+'-'+holder]=layers;
+  }
+  draw();
+}
+function canvasPoint(event) {
+  const box=$('preview').getBoundingClientRect();return{x:(event.clientX-box.left)*640/box.width,y:(event.clientY-box.top)*520/box.height};
+}
+function hitHandle(point,handle){return Math.hypot(point.x-handle.x,point.y-handle.y)<22;}
+$('preview').addEventListener('pointerdown',event=>{
+  if(!geometry||event.button>0)return;const point=canvasPoint(event);let mode='move';
+  if(hitHandle(point,geometry.rotate))mode='rotate';else if(hitHandle(point,geometry.resize))mode='resize';
+  else{const local=WP.point(WP.inverse(geometry.transform),point);if(local.x<0||local.y<0||local.x>image.width||local.y>image.height){if(!hitHandle(point,geometry.grip))return;}}
+  event.preventDefault();$('preview').focus();remember();
+  const local=WP.point(WP.inverse(geometry.holder),point),settings=position();
+  drag={mode,start:point,local,settings,holder:geometry.holder,grip:geometry.grip,pointerId:event.pointerId};
+  $('preview').setPointerCapture(event.pointerId);$('preview').classList.add('dragging');
+});
+$('preview').addEventListener('pointermove',event=>{
+  if(!drag||event.pointerId!==drag.pointerId)return;event.preventDefault();const point=canvasPoint(event),start=drag.settings;
+  if(drag.mode==='move'){
+    const delta=WP.localDelta(drag.holder,point.x-drag.start.x,point.y-drag.start.y);
+    $('offsetX').value=clamp(start.offsetX+delta.x,-200,200).toFixed(1);$('offsetY').value=clamp(start.offsetY+delta.y,-200,200).toFixed(1);
+  }else if(drag.mode==='rotate'){
+    const current=WP.point(WP.inverse(drag.holder),point);
+    const before=Math.atan2(drag.local.y-start.offsetY,drag.local.x-start.offsetX),after=Math.atan2(current.y-start.offsetY,current.x-start.offsetX);
+    const angle=start.rotation+(after-before)*180/Math.PI;$('rotation').value=(((angle+180)%360+360)%360-180).toFixed(1);
+  }else{
+    const initial=Math.hypot(drag.start.x-drag.grip.x,drag.start.y-drag.grip.y)||1;
+    const distance=Math.hypot(point.x-drag.grip.x,point.y-drag.grip.y);$('displayHeight').value=clamp(start.displayHeight*distance/initial,20,350).toFixed(1);
+  }
+  draw();
+});
+function stopDrag(event){if(!drag||event.pointerId!==drag.pointerId)return;drag=null;$('preview').classList.remove('dragging');announce();}
+for(const type of ['pointerup','pointercancel','lostpointercapture'])$('preview').addEventListener(type,stopDrag);
+$('preview').addEventListener('keydown',event=>{
+  if(!image)return;
+  if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='z'){event.preventDefault();$('undoPosition').click();return;}
+  const step=event.shiftKey?10:1,delta={ArrowLeft:[-step,0],ArrowRight:[step,0],ArrowUp:[0,-step],ArrowDown:[0,step]}[event.key];if(!delta)return;
+  event.preventDefault();remember();const local=WP.localDelta(rig.poses[$('pose').value][holderName()],delta[0],delta[1]);
+  $('offsetX').value=clamp(Number($('offsetX').value)+local.x,-200,200).toFixed(1);$('offsetY').value=clamp(Number($('offsetY').value)+local.y,-200,200).toFixed(1);draw();announce();
+});
+$('sourcePreview').addEventListener('click',event=>{
+  if(!imageBox)return;remember();const rect=$('sourcePreview').getBoundingClientRect(),x=(event.clientX-rect.left)*480/rect.width,y=(event.clientY-rect.top)*220/rect.height;
+  const percent=(value,start,size)=>clamp((value-start)/size*100,0,100).toFixed(1);$('pivotX').value=percent(x,imageBox.x,imageBox.w);$('pivotY').value=percent(y,imageBox.y,imageBox.h);draw();announce();
+});
+$('undoPosition').onclick=()=>{if(!history.length)return;restore(history.pop());$('undoPosition').disabled=!history.length;announce();};
+$('snapHand').onclick=()=>{remember();$('offsetX').value=0;$('offsetY').value=0;draw();announce();};
+$('resetPosition').onclick=()=>{remember();restore({...position(),offsetX:0,offsetY:0,rotation:0,displayHeight:120,flipX:false,flipY:false});announce();};
+for(const [id,key] of [['flipHorizontal','flipX'],['flipVertical','flipY']])$(id).onclick=()=>{remember();if(key==='flipX')flipX=!flipX;else flipY=!flipY;draw();announce();};
+for(const id of ['pivotX','pivotY','offsetX','offsetY','rotation','displayHeight']){
+  $(id).addEventListener('focus',()=>remember());
+  $(id).addEventListener('input',()=>{if($(id).value!==''&&$(id).validity.valid)draw();});
+  $(id).addEventListener('change',()=>{const input=$(id);input.value=clamp(Number(input.value)||0,Number(input.min),Number(input.max));draw();announce();});
+}
+for(const [slider,input] of [['rotationRange','rotation'],['heightRange','displayHeight']]){
+  $(slider).addEventListener('pointerdown',remember);$(slider).addEventListener('keydown',event=>{if(event.key.startsWith('Arrow'))remember();});
+  $(slider).addEventListener('input',()=>{$(input).value=$(slider).value;draw();});$(slider).addEventListener('change',announce);
+}
+$('pose').addEventListener('change',draw);$('animation').addEventListener('change',draw);
+$('image').addEventListener('change',async()=>{
+  imageData='';image=null;draw();
+  const file=$('image').files[0];if(!file)return;
+  try{
+    if(file.type!=='image/png'||file.size>5*1024*1024)throw new Error('Pilih PNG maksimal 5 MB.');
+    const url=URL.createObjectURL(file),candidate=new Image();
+    try{await new Promise((resolve,reject)=>{candidate.onload=resolve;candidate.onerror=()=>reject(new Error('Gambar tidak dapat dibaca.'));candidate.src=url;});}finally{URL.revokeObjectURL(url);}
+    if(candidate.width>4096||candidate.height>4096)throw new Error('Ukuran gambar maksimal 4096 × 4096 piksel.');
+    const normalized=document.createElement('canvas');normalized.width=candidate.width;normalized.height=candidate.height;
+    normalized.getContext('2d').drawImage(candidate,0,0);imageData=normalized.toDataURL('image/png');
+    image=candidate;history.length=0;$('undoPosition').disabled=true;draw();message('importStatus','Gambar siap. Seret senjata ke tangan model lalu isi nama senjata.');
+  }catch(error){message('importStatus',error.message,true);}
+});
+function exitPositionEdit() {
+  editingWeaponId=null;
+  for(const id of ['image','name','description','damage','level','animation'])$(id).disabled=false;
+  $('image').required=true;$('importButton').textContent='Impor senjata';$('cancelEdit').hidden=true;
+  imageData='';image=null;$('image').value='';draw();message('importStatus','Pilih PNG untuk membuat senjata baru.');
+}
+$('cancelEdit').onclick=exitPositionEdit;
+async function editPosition(weapon) {
+  if(importing)return;
+  try{
+    const blob=await (await fetch('/trainer/weapons/preview/'+weapon.id+'.png')).blob();
+    const url=URL.createObjectURL(blob),candidate=new Image();
+    try{await new Promise((resolve,reject)=>{candidate.onload=resolve;candidate.onerror=reject;candidate.src=url;});}finally{URL.revokeObjectURL(url);}
+    image=candidate;editingWeaponId=weapon.id;
+    for(const key of ['name','description','damage','level','animation'])$(key).value=weapon[key];
+    for(const id of ['image','name','description','damage','level','animation'])$(id).disabled=true;
+    $('image').required=false;$('importButton').textContent='Simpan posisi';$('cancelEdit').hidden=false;
+    restore({pivotX:weapon.pivotX===undefined?0.5:weapon.pivotX,pivotY:weapon.pivotY===undefined?0.85:weapon.pivotY,displayHeight:weapon.displayHeight||120,rotation:weapon.rotation||0,offsetX:weapon.offsetX||0,offsetY:weapon.offsetY||0,flipX:weapon.flipX===true,flipY:weapon.flipY===true});
+    history.length=0;$('undoPosition').disabled=true;message('importStatus','Mengatur posisi '+weapon.name+'. ID dan data senjata tetap sama.');$('preview').scrollIntoView({block:'center',behavior:'smooth'});$('preview').focus({preventScroll:true});
+  }catch(error){message('importStatus','Gambar senjata tidak dapat dimuat. Coba lagi.',true);}
+}
+async function load(){
+  const data=await api('/api/trainer/weapons'),selected=$('character').value||String(data.activeId||'');
+  $('character').replaceChildren();for(const c of data.characters){const option=new Option(c.name+' — Lv '+c.level,c.id);$('character').add(option);}if(data.characters.some(c=>c.id===selected))$('character').value=selected;
+  $('weapons').replaceChildren();if(!data.weapons.length){const empty=document.createElement('p');empty.textContent='Belum ada senjata kustom. Impor senjata pertama Anda.';$('weapons').append(empty);}
+  for(const weapon of data.weapons){
+    const row=document.createElement('div');row.className='item';const img=document.createElement('img');img.src='/trainer/weapons/preview/'+weapon.id+'.png';img.alt=weapon.name;
+    const text=document.createElement('div'),name=document.createElement('strong'),detail=document.createElement('small'),button=document.createElement('button');
+    name.textContent=weapon.name;detail.textContent=weapon.id+' · Damage '+weapon.damage+' · Lv '+weapon.level;button.textContent='Berikan ke karakter';button.type='button';
+    button.onclick=async()=>{button.disabled=true;const target=$('character').value;try{const result=await post('/api/trainer/weapons/grant',{characterId:target,weaponId:weapon.id,equip:$('equip').checked});message('grantStatus',result.message);}catch(error){message('grantStatus',error.message,true);}finally{button.disabled=false;}};
+    text.append(name,detail,document.createElement('br'),button);if(weapon.id!=='wpn9000'){const edit=document.createElement('button');edit.type='button';edit.className='secondary';edit.style.marginLeft='8px';edit.textContent='Atur posisi';edit.onclick=()=>editPosition(weapon);text.append(edit);}row.append(img,text);$('weapons').append(row);
+  }
+}
+$('reload').onclick=()=>load().catch(error=>message('grantStatus',error.message,true));
+$('importForm').addEventListener('submit',async event=>{
+  event.preventDefault();if(importing)return;if(!imageData&&!editingWeaponId)return message('importStatus','Pilih gambar PNG terlebih dahulu.',true);
+  importing=true;$('importButton').disabled=true;$('progress').style.display='block';
+  try{
+    const fields={image:imageData,name:$('name').value,description:$('description').value,animation:$('animation').value,editWeaponId:editingWeaponId,...position(),damage:Number($('damage').value),level:Number($('level').value)};
+    let {job}=await post('/api/trainer/weapons/import',fields);
+    while(job.state==='building'){message('importStatus',job.message);await new Promise(resolve=>setTimeout(resolve,1200));({job}=await api('/api/trainer/weapons/jobs/'+job.id));}
+    if(job.state!=='success')throw new Error(job.message);
+    message('importStatus',job.operation==='position' ? 'Posisi '+job.weapon.name+' diperbarui. Buka ulang game untuk melihat hasilnya.' : job.weapon.name+' ('+job.weapon.id+') berhasil diimpor. Pilih karakter tujuan dan klik Berikan ke karakter.');await load();
+  }catch(error){message('importStatus',error.message,true);}finally{importing=false;$('importButton').disabled=false;$('progress').style.display='none';}
+});
+draw();loadRig().catch(()=>{$('positionStatus').textContent='Model gagal dimuat. Muat ulang halaman untuk mencoba kembali.';});load().catch(error=>message('grantStatus',error.message,true));
+</script></body></html>

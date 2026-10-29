@@ -8,6 +8,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const UPGRADE_PREDECESSORS = require('./upgrade-predecessors');
 
 const DB  = path.join(__dirname, 'characters.json');
 const TMP = DB + '.tmp';
@@ -49,6 +50,26 @@ function bacaJson(file) {
   return obj;
 }
 
+const GAUNTLET_SLOT_SKILL_IDS = ['903', '904', '905', '906', '907', '926'];
+
+function restoreGauntletSkills(c) {
+  if (!c || !c.gauntlet) return false;
+  c.skills = Array.isArray(c.skills) ? c.skills.map(String) : [];
+  let changed = false;
+  for (let i = 0; i < GAUNTLET_SLOT_SKILL_IDS.length; i++) {
+    const skillId = GAUNTLET_SLOT_SKILL_IDS[i];
+    if (Number((c.gauntlet.slotSkill || [])[i]) > 0 && !c.skills.includes(skillId)) {
+      c.skills.push(skillId);
+      changed = true;
+    }
+  }
+  if (Number(c.gauntlet.power) > 0 && !c.skills.includes('908')) {
+    c.skills.push('908');
+    changed = true;
+  }
+  return changed;
+}
+
 function bootLoad() {
   if (!fs.existsSync(DB)) {
     cache = {};
@@ -61,6 +82,7 @@ function bootLoad() {
   try {
     cache = bacaJson(DB);
     bolehSimpan = true;
+    if (Object.values(cache).map(restoreGauntletSkills).some(Boolean)) save(cache);
     console.log('### characters.json dimuat: ' +
                 Object.keys(cache).length + ' karakter.');
     return;
@@ -76,6 +98,7 @@ function bootLoad() {
     try {
       cache = bacaJson(BAK);
       bolehSimpan = true;
+      if (Object.values(cache).map(restoreGauntletSkills).some(Boolean)) save(cache);
       pesan([
         '   Dipulihkan dari characters.json.bak: ' +
           Object.keys(cache).length + ' karakter.',
@@ -167,6 +190,7 @@ function createCharacter(args) {
     hp: 100, cp: 100,
     str: 1, agi: 1, sta: 1, chakra: 1, intel: 1,
     ap: 0,
+    attributePointBonus: 0,
     // Poin elemen [api, air, angin, tanah, petir]. Klien mengirim TOTAL
     // absolutnya lewat CharacterDAO.updateAP, bukan selisih.
     elements: [0, 0, 0, 0, 0],
@@ -190,6 +214,7 @@ function createCharacter(args) {
     created: Math.floor(Date.now() / 1000),
   };
   all[id] = c;
+  activeId = id;
   save(all);
   return c;
 }
@@ -346,7 +371,7 @@ let activeId = null;
 function setActiveCharacter(id) {
   const all = load();
   const key = String(id);
-  if (Object.prototype.hasOwnProperty.call(all, key)) {
+  if (Object.prototype.hasOwnProperty.call(all, key) && !all[key].deletedAt) {
     activeId = key;
     return key;
   }
@@ -358,8 +383,18 @@ function getActiveId() { return activeId; }
 /* Kunci karakter yang harus ditulis: yang sedang aktif, atau karakter
  * pertama kalau klien belum sempat memilih (mis. tepat setelah createCharacter). */
 function activeKey(all) {
-  if (activeId != null && Object.prototype.hasOwnProperty.call(all, activeId)) return activeId;
-  return Object.keys(all)[0];
+  if (activeId != null && all[activeId] && !all[activeId].deletedAt) return activeId;
+  return Object.keys(all).find(k => !all[k].deletedAt);
+}
+
+function updateCharacter(id, change, includeDeleted = false) {
+  const all = load();
+  const key = id == null ? activeKey(all) : String(id);
+  if (!key || !all[key] || (all[key].deletedAt && !includeDeleted)) return null;
+  const result = change(all[key]);
+  if (result === false) return null;
+  save(all);
+  return { character: all[key], result };
 }
 
 function characterById(id) {
@@ -370,14 +405,16 @@ function characterById(id) {
 
 function firstCharacter() {
   const all = load();
-  const keys = Object.keys(all);
-  return keys.length ? rapikanInventaris(migrasiInventaris(normalizeLevel(all[keys[0]]))) : null;
+  const key = Object.keys(all).find(k => !all[k].deletedAt);
+  return key ? rapikanInventaris(migrasiInventaris(normalizeLevel(all[key]))) : null;
 }
 
 function listCharacters() {
   const all = load();
-  return Object.keys(all).map(k => all[k]);
+  return Object.keys(all).filter(k => !all[k].deletedAt).map(k => all[k]);
 }
+
+function allCharacters() { return Object.values(load()); }
 
 const DB_TYPES = {
   "account_id": "uint",
@@ -565,25 +602,90 @@ function emptyRecord() {
 }
 
 
+function coverAllElementsPoints(c) {
+  if (c.allElementsMode !== true) return;
+  const invested = (Array.isArray(c.elements) ? c.elements : [])
+    .reduce((sum, value) => sum + Math.max(0, Math.floor(Number(value) || 0)), 0);
+  const level = Math.max(1, Math.floor(Number(c.level) || 1));
+  const bonus = Math.max(0, Math.floor(Number(c.attributePointBonus) || 0));
+  // BattleDoc memutus koneksi dengan kode 297 jika total elemen melebihi
+  // level + attribute_point_bonus. Mode Lima Elemen harus memenuhi batas itu.
+  c.attributePointBonus = Math.max(bonus, invested - level);
+}
+
 /* CharacterDAO.updateAP -> [sessionKey, characterId, [api,air,angin,tanah,petir]]
  * Nilainya total absolut (Character.updateAP mengirim dbChar.character_* apa
  * adanya), jadi cukup ditimpa. */
-function setElements(arr) {
+function setElements(arr, targetId) {
   const all = load();
-  const key = Object.keys(all)[0];
+  const key = targetId ? String(targetId) : activeKey(all);
   if (!key) return null;
   const c = all[key];
-  c.elements = [0, 1, 2, 3, 4].map(i => Number(arr && arr[i]) || 0);
+  if (!c) return null;
+  c.elements = [0, 1, 2, 3, 4].map(i => Math.max(0, Number(arr && arr[i]) || 0));
+  coverAllElementsPoints(c);
   all[key] = c;
   save(all);
   return c;
+}
+
+function refundAttributePoints(id, amount, element) {
+  const n = Number(amount);
+  if (!Number.isSafeInteger(n) || n < 1) throw new RangeError('Jumlah poin harus bilangan bulat positif.');
+  const all = load();
+  const key = String(id);
+  const c = all[key];
+  if (!c) return null;
+
+  const elements = [0, 1, 2, 3, 4].map(i => Math.max(0, Math.floor(Number(c.elements && c.elements[i]) || 0)));
+  const names = { fire: 0, water: 1, wind: 2, earth: 3, lightning: 4 };
+  const source = String(element || 'auto');
+  if (source !== 'auto' && !Object.prototype.hasOwnProperty.call(names, source)) {
+    throw new RangeError('Elemen sumber tidak dikenal.');
+  }
+  const available = source === 'auto' ? elements.reduce((sum, value) => sum + value, 0) : elements[names[source]];
+  if (n > available) throw new RangeError('Poin elemen yang tersedia hanya ' + available + '.');
+
+  const order = source === 'auto'
+    ? [0, 1, 2, 3, 4].sort((a, b) => elements[b] - elements[a] || a - b)
+    : [names[source]];
+  let remaining = n;
+  for (const i of order) {
+    const returned = Math.min(remaining, elements[i]);
+    elements[i] -= returned;
+    remaining -= returned;
+    if (remaining === 0) break;
+  }
+
+  c.elements = elements;
+  all[key] = c;
+  save(all);
+  return { character: c, pointLeft: (Number(c.level) || 1) + (Number(c.attributePointBonus) || 0) - elements.reduce((sum, value) => sum + value, 0) };
+}
+
+function addAttributePointBonus(id, amount) {
+  const n = Number(amount);
+  if (!Number.isSafeInteger(n) || n < 1 || n > 100000) {
+    throw new RangeError('Bonus Point Left harus antara 1 dan 100.000.');
+  }
+  const all = load();
+  const key = String(id);
+  const c = all[key];
+  if (!c) return null;
+  const current = Math.max(0, Math.floor(Number(c.attributePointBonus) || 0));
+  if (current + n > 1000000) throw new RangeError('Total bonus Point Left maksimum 1.000.000.');
+  c.attributePointBonus = current + n;
+  all[key] = c;
+  save(all);
+  const invested = (Array.isArray(c.elements) ? c.elements : []).reduce((sum, value) => sum + (Number(value) || 0), 0);
+  return { character: c, bonus: c.attributePointBonus, pointLeft: (Number(c.level) || 1) + c.attributePointBonus - invested };
 }
 
 /* CharacterDAO.trainSkill -> [sessionKey, skillId, sequence]
  * skillId datang sebagai "skill123" atau angka; disimpan sebagai angka. */
 function addSkill(skillId) {
   const all = load();
-  const key = Object.keys(all)[0];
+  const key = activeKey(all);
   if (!key) return null;
   const c = all[key];
   if (!Array.isArray(c.skills)) c.skills = [];
@@ -594,25 +696,67 @@ function addSkill(skillId) {
   return c;
 }
 
+function buyAcademySkill(skillId, goldCost, tokenCost, accountBalance) {
+  const all = load();
+  const key = activeKey(all);
+  if (!key) return { error: 'Karakter tidak ditemukan.' };
+  const c = all[key];
+  const id = String(skillId).replace(/^skill/, '');
+  const gold = Number(goldCost);
+  const token = Number(tokenCost);
+  if (!/^\d+$/.test(id) || !Number.isSafeInteger(gold) || gold < 0 ||
+      !Number.isSafeInteger(token) || token < 0) {
+    return { error: 'Data harga jutsu tidak valid.' };
+  }
+  if (!Array.isArray(c.skills)) c.skills = [];
+  if (c.skills.includes(id)) return { error: 'Jutsu sudah dipelajari.' };
+  if ((Number(c.gold) || 0) < gold || !Number.isFinite(Number(accountBalance)) ||
+      Number(accountBalance) < token) {
+    return { error: 'Gold atau Token tidak cukup.' };
+  }
+  c.gold = (Number(c.gold) || 0) - gold;
+  c.token = Math.max(0, (Number(c.token) || 0) - token);
+  c.academyTokenSpent = (Number(c.academyTokenSpent) || 0) + token;
+  const predecessor = UPGRADE_PREDECESSORS[id];
+  if (predecessor) {
+    c.skills = c.skills.filter(value => String(value) !== predecessor);
+    if (c.equip && Array.isArray(c.equip.jutsu)) {
+      c.equip.jutsu = c.equip.jutsu.filter(value =>
+        String(value).replace(/^skill/, '') !== predecessor);
+    }
+    for (const [profile, slots] of Object.entries(c.skillProfiles || {})) {
+      if (Array.isArray(slots)) {
+        c.skillProfiles[profile] = slots.filter(value =>
+          String(value).replace(/^skill/, '') !== predecessor);
+      }
+    }
+  }
+  c.skills.push(id);
+  all[key] = c;
+  save(all);
+  return { character: c };
+}
+
 /* CharacterDAO.sellItem -> [sessionKey, characterId, "wpn2", jumlah]
  * Kebalikan addItem: buang dari kantong yang sesuai, tambahkan uangnya. */
 function removeItem(itemId, jumlah, kembaliGold) {
   const all = load();
-  const key = Object.keys(all)[0];
+  const key = activeKey(all);
   if (!key) return null;
   const c = all[key];
 
   const k = kantongDari(String(itemId));
   const bag = k ? k.bag : 'items';
   const num = k ? k.num : String(itemId).replace(/^item/, '');
-  const n = Math.max(1, Number(jumlah) || 1);
+  const n = Number(jumlah);
+  if (!Number.isSafeInteger(n) || n < 1) return null;
 
-  if (Array.isArray(c[bag])) {
-    for (let i = 0; i < n; i++) {
-      const at = c[bag].indexOf(num);
-      if (at === -1) break;
-      c[bag].splice(at, 1);
-    }
+  if (!Array.isArray(c[bag]) || c[bag].filter(x => String(x) === num).length < n) {
+    return null;
+  }
+
+  for (let i = 0; i < n; i++) {
+    c[bag].splice(c[bag].findIndex(x => String(x) === num), 1);
   }
 
   // Kalau yang dijual sedang dipakai, lepaskan — supaya tidak mengirim
@@ -630,26 +774,74 @@ function removeItem(itemId, jumlah, kembaliGold) {
   return c;
 }
 
-/* CharacterDAO.equipCharacter ->
- * [sessionKey, characterId, tradingBodySet, tradingWeapon, ?, tradingBackItem, accessory]
- * Bentuk tiap nilai (string tunggal vs array) belum dipastikan dari bytecode;
- * disimpan sebagai String(...) apa adanya. */
-function setEquip(weapon, bodySet, backItem, accessory, jutsu) {
+const SKILL_PROFILE_NAMES = ['hokage', 'hunting', 'clan', 'pvp', 'pve'];
+
+function skillSlotIds(slots) {
+  if (slots == null) return null;
+  let values;
+  if (Array.isArray(slots)) {
+    values = slots;
+  } else if (typeof slots === 'object') {
+    values = Object.keys(slots)
+      .filter(k => /^\d+$/.test(k))
+      .sort((a, b) => Number(a) - Number(b))
+      .map(k => slots[k]);
+  } else if (typeof slots === 'string') {
+    values = slots.split(',');
+  } else {
+    return [];
+  }
+  return values.map(v => String(v == null ? '' : v).replace(/^skill/, ''))
+    .filter(v => /^\d+$/.test(v));
+}
+
+function setSkillProfile(name, slots) {
+  const profile = String(name || '').toLowerCase();
+  if (!SKILL_PROFILE_NAMES.includes(profile)) return null;
+  const jutsu = skillSlotIds(slots);
+  if (jutsu == null) return null;
   const all = load();
-  const key = Object.keys(all)[0];
+  const key = activeKey(all);
   if (!key) return null;
   const c = all[key];
+  if (!c.skillProfiles) c.skillProfiles = {};
+  c.skillProfiles[profile] = jutsu;
+  all[key] = c;
+  save(all);
+  return jutsu;
+}
+
+function getSkillProfiles() {
+  const all = load();
+  const c = all[activeKey(all)];
+  const saved = c && c.skillProfiles || {};
+  const profiles = {};
+  for (const name of SKILL_PROFILE_NAMES) {
+    const source = Object.prototype.hasOwnProperty.call(saved, name)
+      ? saved[name]
+      : (name === 'hokage' && c && c.equip ? c.equip.jutsu : []);
+    const ids = (skillSlotIds(source) || [])
+      .filter(id => !ALL_EQUIPPABLE_SAGE_IDS.includes(id));
+    profiles[name] = ids.map(id => 'skill' + id).join(',');
+  }
+  return profiles;
+}
+
+/* CharacterDAO.equipCharacter menerima slot jutsu sebagai Array atau objek
+ * dengan kunci numerik, misalnya { "0": "skill82" }. */
+function setEquip(weapon, bodySet, backItem, accessory, jutsu, characterId) {
+  const all = load();
+  const key = characterId == null ? activeKey(all) : String(characterId);
+  if (!key || !all[key]) return null;
+  const c = all[key];
+  const equippedJutsu = skillSlotIds(jutsu);
   c.equip = {
     weapon:    weapon    != null ? String(weapon)    : '',
     bodySet:   bodySet   != null ? String(bodySet)   : '',
     backItem:  backItem  != null ? String(backItem)  : '',
     accessory: accessory != null ? String(accessory) : '',
-    // Jutsu terpasang, disimpan sebagai id telanjang. Klien mengirim
-    // ["skill13","skill16"] dan membacanya kembali lewat
-    // character_equipped_skills yang di-split "," lalu di-int().
-    jutsu: Array.isArray(jutsu)
-      ? jutsu.map(x => String(x).replace(/^skill/, '')).filter(Boolean)
-      : ((c.equip && c.equip.jutsu) || []),
+    // character_equipped_skills dibaca sebagai CSV id numerik saat login.
+    jutsu: equippedJutsu == null ? ((c.equip && c.equip.jutsu) || []) : equippedJutsu,
   };
   all[key] = c;
   save(all);
@@ -681,7 +873,7 @@ function kantongDari(id) {
 
 function addItem(itemId, jumlah, hargaGold, hargaToken) {
   const all = load();
-  const key = Object.keys(all)[0];
+  const key = activeKey(all);
   if (!key) return null;
   const c = all[key];
   const n = Math.max(1, Number(jumlah) || 1);
@@ -765,6 +957,11 @@ function addItem(itemId, jumlah, hargaGold, hargaToken) {
  */
 const { PET_DATA, petById, biayaLatih } = require('./petdata');
 const { BLOODLINE_SKILL } = require('./bloodlinedata');
+// Bloodline 12 belum ada di BLOODLINE_DATA, sedangkan skill 1040 masih
+// development dan berkas animasinya tidak tersedia. Jangan kirim ke klien.
+const ALL_TALENT_SKILL_IDS = Object.freeze(Object.keys(BLOODLINE_SKILL)
+  .filter(id => Number(BLOODLINE_SKILL[id].bloodline_id) <= 11 && id !== '1040')
+  .sort((a, b) => Number(a) - Number(b)));
 
 // Satu-satunya berkas pet yang benar-benar ada di C:\NinjaSaga\web; nama lain
 // dilayani assetclone.js sebagai kloningannya. Dipakai kalau id tak dikenal.
@@ -900,6 +1097,7 @@ function petEntry(p, sessionKey) {
     // assetclone.js, class-nya dinamai sama dengan nama file.
     clsName:  String(p.clsName || a.clsName),
     equipped: !!p.equipped,
+    maturity: Math.max(0, Number(p.maturity) || 0),
   };
   e.hash = petHash(e, sessionKey);
   return e;
@@ -969,6 +1167,7 @@ function addPet(pet) {
     swfName,
     clsName:  String(pet.clsName || a.clsName),
     equipped: !!pet.equipped,
+    maturity: pet.maturity == null ? null : Math.max(0, Number(pet.maturity) || 0),
   };
 
   // Field bernilai null berarti "tidak disebutkan" -- dibuang supaya nilai
@@ -1133,6 +1332,128 @@ function petBuyResult(pet, sessionKey) {
  */
 const SS_MISSION = ['msn279', 'msn280', 'msn281', 'msn282', 'msn283'];
 
+const S_LEVEL_MISSIONS = [
+  ['msn274', 80, 10, 82700, 5000], ['msn275', 81, 12, 88600, 5300],
+  ['msn276', 82, 14, 92580, 5500], ['msn277', 83, 16, 95430, 5600],
+  ['msn278', 84, 25, 100000, 5900],
+];
+
+function sLevelRecord() {
+  const all = load(), key = activeKey(all);
+  return key ? { all, c: all[key] } : null;
+}
+
+function sLevelEnergy(c) {
+  const now = Math.floor(Date.now() / 1000);
+  let energy = c.sLevelEnergy == null ? 75 : Math.max(0, Math.min(75, Math.floor(Number(c.sLevelEnergy) || 0)));
+  let updated = Number(c.sLevelEnergyUpdatedAt) || now;
+  if (energy < 75 && updated <= now) {
+    const recovered = Math.floor((now - updated) / 360);
+    energy = Math.min(75, energy + recovered);
+    updated += recovered * 360;
+  }
+  if (energy === 75) updated = now;
+  c.sLevelEnergy = energy;
+  c.sLevelEnergyUpdatedAt = updated;
+  return { energy, refillRemain: energy === 75 ? 0 : Math.max(1, 360 - (now - updated)) };
+}
+
+function sLevelCompleted(c) {
+  let completed = 0;
+  for (const [id] of S_LEVEL_MISSIONS) {
+    if (Number(c.missions && c.missions[id.slice(3)] && c.missions[id.slice(3)].success) > 0) completed++;
+    else break;
+  }
+  return completed;
+}
+
+function statusMisiSLevel() {
+  const record = sLevelRecord();
+  if (!record) return null;
+  const { all, c } = record, energy = sLevelEnergy(c), completed = sLevelCompleted(c);
+  save(all);
+  return { chapter_status: completed === 5 ? 2 : 1, mission_status: completed,
+    remain_energy: energy.energy, energy_refill_remain: energy.refillRemain };
+}
+
+function mulaiMisiSLevel(id) {
+  const index = S_LEVEL_MISSIONS.findIndex(m => m[0] === String(id));
+  if (index < 0) return { gagal: 'Misi S-Level tidak dikenal.' };
+  const record = sLevelRecord();
+  if (!record) return { gagal: 'Karakter aktif tidak ditemukan.' };
+  const { all, c } = record, mission = S_LEVEL_MISSIONS[index];
+  if (c.sLevelCurrentMission === id) return { id, ulang: true };
+  if (c.sLevelCurrentMission) return { gagal: 'Selesaikan misi aktif dahulu.' };
+  if (index > sLevelCompleted(c)) return { gagal: 'Tahap sebelumnya belum selesai.' };
+  if ((Number(c.level) || 1) < Math.min(80, mission[1])) return { gagal: 'Level belum cukup.' };
+  if (sLevelEnergy(c).energy < mission[2]) return { gagal: 'Energi belum cukup.' };
+  c.sLevelEnergy -= mission[2];
+  c.sLevelCurrentMission = id;
+  save(all);
+  return { id, energy: c.sLevelEnergy };
+}
+
+function beliRamenSLevel(quantity, availableTokens) {
+  const count = Number(quantity), cost = count * 30;
+  if (!Number.isInteger(count) || count < 1 || count > 5) return { gagal: 'Jumlah Big Ramen harus 1 sampai 5.' };
+  if (Number(availableTokens) < cost) return { gagal: 'Token tidak cukup.' };
+  const record = sLevelRecord();
+  if (!record) return { gagal: 'Karakter aktif tidak ditemukan.' };
+  const { all, c } = record;
+  if (!Array.isArray(c.items)) c.items = [];
+  for (let i = 0; i < count; i++) c.items.push('900');
+  c.sLevelTokenSpent = (Number(c.sLevelTokenSpent) || 0) + cost;
+  save(all);
+  return { count, cost };
+}
+
+function pakaiRamenSLevel(type) {
+  const item = Number(type) === 1 ? '900' : Number(type) === 2 ? '899' : null;
+  if (!item) return { gagal: 'Jenis ramen tidak dikenal.' };
+  const record = sLevelRecord();
+  if (!record) return { gagal: 'Karakter aktif tidak ditemukan.' };
+  const { all, c } = record, energy = sLevelEnergy(c);
+  if (energy.energy >= 75) return { gagal: 'Energi sudah penuh.' };
+  const index = Array.isArray(c.items) ? c.items.findIndex(id => String(id) === item) : -1;
+  if (index < 0) return { gagal: 'Ramen tidak tersedia.' };
+  c.items.splice(index, 1);
+  c.sLevelEnergy = item === '900' ? 75 : Math.min(75, energy.energy + 10);
+  if (c.sLevelEnergy === 75) c.sLevelEnergyUpdatedAt = Math.floor(Date.now() / 1000);
+  save(all);
+  return { item: 'item' + item, energy: c.sLevelEnergy };
+}
+
+function selesaikanMisiSLevel(id, failed) {
+  const mission = S_LEVEL_MISSIONS.find(m => m[0] === String(id));
+  if (!mission) return { gagal: 'Misi S-Level tidak dikenal.' };
+  const record = sLevelRecord();
+  if (!record) return { gagal: 'Karakter aktif tidak ditemukan.' };
+  const { all, c } = record;
+  if (c.sLevelCurrentMission !== id) return { diabaikan: true };
+  if (!c.missions || typeof c.missions !== 'object') c.missions = {};
+  const no = id.slice(3), entry = c.missions[no] || { success: 0, fail: 0, time: 0 };
+  if (failed) entry.fail = (Number(entry.fail) || 0) + 1;
+  else {
+    entry.success = (Number(entry.success) || 0) + 1;
+    c.xp = (Number(c.xp) || 0) + mission[3];
+    c.gold = (Number(c.gold) || 0) + mission[4];
+    const oldLevel = Number(c.level) || 1;
+    c.level = getLvByXp(c.xp);
+    if (c.level !== oldLevel) {
+      c.hp = 100 + (c.level - 1) * 40;
+      c.cp = 100 + (c.level - 1) * 40;
+      c.agi = 1 + (c.level - 1);
+      c.naikLevel = c.level > oldLevel;
+    }
+    if (!Array.isArray(c.items)) c.items = [];
+    c.items.push('900');
+  }
+  c.missions[no] = entry;
+  c.sLevelCurrentMission = null;
+  save(all);
+  return { failed, mission, entry, xp: c.xp, gold: c.gold };
+}
+
 /* Status misi Sennin untuk SSTraining.getMissionStatus.
  * Misi yang sudah pernah dituntaskan tetap dikirim status 0 supaya bisa
  * diulang -- klien tidak menyembunyikannya. */
@@ -1145,6 +1466,72 @@ function statusMisiSennin(c) {
     status: rank > 7 ? 0 : 1,
     mission: SS_MISSION.map(id => ({ id, status: 0 })),
   };
+}
+
+function tandaiHadiahLv80Dibaca() {
+  const all = load();
+  const key = activeKey(all);
+  if (!key) return null;
+  const c = all[key];
+  const sudah = c.lv80RewardListRead === true;
+  if (!sudah) {
+    c.lv80RewardListRead = true;
+    save(all);
+  }
+  return { sudah, dibaca: true };
+}
+
+function mulaiMisiSennin(missionId) {
+  const id = String(missionId || '');
+  if (!SS_MISSION.includes(id)) return { gagal: 'Misi SS tidak dikenal.' };
+  const all = load();
+  const key = activeKey(all);
+  if (!key) return { gagal: 'Karakter aktif tidak ditemukan.' };
+  const c = all[key];
+  if (statusMisiSennin(c).status !== 0) return { gagal: 'SS Training belum terbuka.' };
+  if (c.ssTrainingCurrentMission !== id) {
+    c.ssTrainingCurrentMission = id;
+    c.ssTrainingStartedAt = Math.floor(Date.now() / 1000);
+    save(all);
+  }
+  return { id, startedAt: c.ssTrainingStartedAt };
+}
+
+function selesaikanMisiSennin(missionId, gagal = false) {
+  const id = String(missionId || '');
+  if (!SS_MISSION.includes(id)) return { gagal: 'Misi SS tidak dikenal.' };
+  const all = load();
+  const key = activeKey(all);
+  if (!key) return { gagal: 'Karakter aktif tidak ditemukan.' };
+  const c = all[key];
+  if (c.ssTrainingCurrentMission !== id) return { diabaikan: true, id };
+
+  const no = id.slice(3);
+  if (!c.missions || typeof c.missions !== 'object') c.missions = {};
+  const entry = c.missions[no] || { success: 0, fail: 0, time: 0 };
+  const ssLama = Number(c.senjutsuSS) || 0;
+  if (gagal) entry.fail = (Number(entry.fail) || 0) + 1;
+  else {
+    entry.success = (Number(entry.success) || 0) + 1;
+    c.senjutsuSS = ssLama + 30;
+  }
+  c.missions[no] = entry;
+  c.ssTrainingCurrentMission = null;
+  c.ssTrainingStartedAt = null;
+  save(all);
+  return { id, gagal, entry, ssLama, ssBaru: Number(c.senjutsuSS) || 0 };
+}
+
+function segarkanMisiSennin() {
+  const all = load();
+  const key = activeKey(all);
+  if (!key) return { gagal: 'Karakter aktif tidak ditemukan.' };
+  const c = all[key];
+  const result = statusMisiSennin(c);
+  if (result.status !== 0) return { gagal: 'SS Training belum terbuka.' };
+  c.ssTrainingLastRefresh = Math.floor(Date.now() / 1000);
+  save(all);
+  return { result, refreshedAt: c.ssTrainingLastRefresh };
 }
 
 function listPets() {
@@ -1191,17 +1578,17 @@ function databaseCharacter(c) {
   //     @97-111 SENJUTSU_DATA["senjutsu" + e.senjutsu_id]           harus ada
   //     @143    e.senjutsu_type == SKILL_TYPE_ACTIVE  -> baru di-push
   //
-  // Kalau array ini kosong, senjutsuList di BattleActionBar juga kosong dan
-  // initButtons melempar #1010 -- bar aksi pertarungan gagal digambar.
+  // dbChar.senjutsu berisi objek level skill. character_senjutsu terpisah:
+  // Character.updateSkillSwf membacanya sebagai nama seperti
+  // "senjutsu_skill3000" untuk memuat animasi dan ikon pertarungan.
   //
-  // senjutsu_id WAJIB sama dengan sistem yang dipilih (2 = Toad, 3 = Snake);
-  // di SENJUTSU_SKILL_DATA tiap skill sudah punya senjutsu_id sendiri dan
-  // klien mencocokkannya dengan SENJUTSU_DATA["senjutsu" + id].
+  // senjutsu_id mengikuti tabel skill: 1 = skill Sage umum,
+  // 2 = Toad, 3 = Snake; bukan selalu sistem yang sedang dipilih.
   {
     // Lihat daftarSenjutsu() untuk pembongkaran lengkap rantai
     // parseCharacterData -> Add_Dbchar_Senjutsu -> getSenjutsuListArr.
     const arr = daftarSenjutsu(c);
-    r.character_senjutsu = arr;
+    r.character_senjutsu = arr.map(x => 'senjutsu_skill' + x.skill_id);
     r.senjutsu = arr;
   }
 
@@ -1809,7 +2196,7 @@ function tambahSenjutsuSS(jumlah = 30) {
   return { lama, baru: c.senjutsuSS };
 }
 
-/* Sistem Senjutsu (Sage Mode) -- Toad / Snake / Slug.
+/* Sistem Senjutsu (Sage Mode) -- Toad / Snake.
  *
  * SagaShop2015.amfClientLearnSageModeResponse (Panel_2015_Sage_Shop.swf,
  * method 666):
@@ -1858,10 +2245,7 @@ function pelajariSenjutsu(skillId) {
 
   c.gold = gold - BIAYA_SENJUTSU_GOLD;
   c.senjutsuSystem = sistem;
-  if (!Array.isArray(c.senjutsu)) c.senjutsu = [];
-  if (!c.senjutsu.some(x => String(x && x.skill_id ? x.skill_id : x) === id)) {
-    c.senjutsu.push({ senjutsu_id: String(sistem), level: '1', skill_id: id });
-  }
+  // id 2/3 memilih mode, bukan ID skill; skill didapat lewat upgrade.
   all[key] = c;
   save(all);
   return { sistem, skillId: id, biaya: BIAYA_SENJUTSU_GOLD, sisaGold: c.gold };
@@ -1926,25 +2310,82 @@ function naikkanSkillSenjutsu(skillId, biayaSS = 0) {
   const c = all[key];
 
   const id = String(skillId == null ? '' : skillId);
-  if (!id) return { gagal: 'skill_id kosong' };
+  const meta = infoSkillSenjutsu(id);
+  if (!meta || meta.maxLevel !== 10 ||
+      (meta.sistem !== Number(c.senjutsuSystem) && c.allSageMode !== true)) {
+    return { gagal: 'skill senjutsu tidak tersedia untuk mode ini' };
+  }
   if (!Array.isArray(c.senjutsu)) c.senjutsu = [];
 
   const ada = c.senjutsu.find(x => String(x && x.skill_id) === id);
-  const levelBaru = ada ? (Number(ada.level) || 0) + 1 : 1;
-  if (ada) ada.level = String(levelBaru);
-  else {
-    // senjutsu_type: 1 = SKILL_TYPE_ACTIVE. Tanpa field ini getSenjutsuListArr
-    // @143 membuang entrinya dan skill-nya tidak pernah muncul di bar aksi.
-    let sistem = Number(c.senjutsuSystem) || 0;
-    if (sistem !== 2 && sistem !== 3) sistem = 2;
-    c.senjutsu.push({ senjutsu_id: String(sistem), level: '1',
-                      skill_id: id, senjutsu_type: 1 });
+  const levelLama = ada ? Number(ada.level) : (c.allSageMode === true ? 1 : 0);
+  if (!Number.isInteger(levelLama) || levelLama < 0 || levelLama >= meta.maxLevel) {
+    return { gagal: 'skill sudah maksimal atau level tidak valid' };
   }
+  const levelBaru = levelLama + 1;
+  if (ada) ada.level = String(levelBaru);
+  else c.senjutsu.push({ senjutsu_id: String(meta.sistem), level: String(levelBaru),
+                         skill_id: id, senjutsu_type: 1 });
 
   if (biayaSS) c.senjutsuSS = Math.max(0, (Number(c.senjutsuSS) || 0) - Number(biayaSS));
   all[key] = c;
   save(all);
   return { skillId: id, level: levelBaru, sisaSS: Number(c.senjutsuSS) || 0 };
+}
+
+/* Upgrade Max satu skill Sage Mode. Biaya dan syarat dihitung di server agar
+ * level, SS, dan cabang baru tetap konsisten setelah login ulang. */
+const SENJUTSU_MAX_COST = [5, 10, 25, 50, 100, 200, 300, 450, 600, 800];
+const SENJUTSU_PREREQUISITES = {
+  3002: [[3001, 5]], 3003: [[3001, 5]],
+  3004: [[3002, 5]], 3005: [[3002, 5]],
+  3006: [[3003, 5]], 3007: [[3003, 5]],
+  3008: [[3004, 5], [3005, 5]],
+  3009: [[3006, 5], [3007, 5]],
+  3010: [[3008, 5], [3009, 5]],
+  3103: [[3101, 5], [3102, 5]],
+  3104: [[3103, 5]], 3105: [[3103, 5]],
+  3106: [[3104, 5]], 3107: [[3105, 5]],
+  3108: [[3104, 5], [3105, 5]],
+  3109: [[3108, 5]], 3110: [[3109, 5]],
+};
+
+function maksimalkanSkillSenjutsu(skillId) {
+  const all = load();
+  const key = activeKey(all);
+  if (!key) return { gagal: 'Karakter aktif tidak ditemukan.' };
+  const c = all[key];
+  const id = Number(skillId);
+  const system = Number(c.senjutsuSystem);
+  const inToad = (system === 2 || c.allSageMode === true) && Number.isInteger(id) && id >= 3001 && id <= 3010;
+  const inSnake = (system === 3 || c.allSageMode === true) && Number.isInteger(id) && id >= 3101 && id <= 3110;
+  if (!inToad && !inSnake) return { gagal: 'Skill Sage Mode tidak tersedia.' };
+  if (!Array.isArray(c.senjutsu)) c.senjutsu = [];
+  const owned = c.senjutsu.find(x => Number(x && x.skill_id) === id);
+  const level = owned ? Number(owned.level) : (c.allSageMode === true ? 1 : 0);
+  if (!Number.isInteger(level) || level < 0 || level >= 10) {
+    return { gagal: level >= 10 ? 'Skill sudah level maksimal.' : 'Level skill tidak valid.' };
+  }
+  for (const [requiredId, requiredLevel] of SENJUTSU_PREREQUISITES[id] || []) {
+    const prerequisite = c.senjutsu.find(x => Number(x && x.skill_id) === requiredId);
+    if (!prerequisite || Number(prerequisite.level) < requiredLevel) {
+      return { gagal: 'Skill prasyarat belum mencapai level ' + requiredLevel + '.' };
+    }
+  }
+  const cost = SENJUTSU_MAX_COST.slice(level).reduce((sum, value) => sum + value, 0);
+  const balance = Number(c.senjutsuSS) || 0;
+  if (balance < cost) return { gagal: 'Upgrade Max membutuhkan ' + cost + ' SS.' };
+  c.senjutsuSS = balance - cost;
+  if (owned) {
+    owned.level = '10';
+  } else {
+    c.senjutsu.push({
+      senjutsu_id: String(inToad ? 2 : 3), skill_id: String(id), level: '10', senjutsu_type: 1,
+    });
+  }
+  all[key] = c;
+  save(all);
+  return { skillId: String(id), level: 10, cost, sisaSS: c.senjutsuSS };
 }
 
 /* ===================== BLOODLINE / TALENT ============================
@@ -2030,28 +2471,48 @@ function bukaBloodline(bloodlineId) {
   return { bloodlineId: id, total: c.bloodline.length };
 }
 
-/* Naikkan level skill bloodline. biayaBP dipotong dari poin yang tersimpan. */
-function naikkanSkillBloodline(skillId, level, biayaBP = 0) {
+/* Biaya tiap kenaikan Lv 0->1 sampai Lv 9->10, sama dengan tpbylvArr
+ * di BloodlineProfile. Permintaan upgrade mengirim LEVEL TUJUAN di args[4]. */
+const BIAYA_TALENT_PER_LEVEL = [5, 10, 25, 50, 100, 200, 300, 450, 600, 800];
+
+function naikkanSkillBloodline(skillId, level) {
   const all = load();
   const key = activeKey(all);
   if (!key) return null;
   const c = all[key];
 
   const id = String(skillId == null ? '' : skillId);
-  if (!id) return { gagal: 'skill_id kosong' };
-  if (!Array.isArray(c.bloodline)) c.bloodline = [];
-
-  const lv = Number(level) || 1;
-  const ada = c.bloodline.find(x => String(x && x.skill_id) === id);
-  if (ada) ada.level = String(lv);
-  else c.bloodline.push({ bloodline_id: '', skill_id: id, level: String(lv) });
-
-  if (biayaBP) {
-    c.bloodlinePoint = Math.max(0, (Number(c.bloodlinePoint) || 0) - Number(biayaBP));
+  const tabel = BLOODLINE_SKILL[id];
+  if (!tabel) return { gagal: 'skill talent tidak dikenal: ' + id };
+  const tujuan = Number(level);
+  if (!Number.isInteger(tujuan) || tujuan < 1 || tujuan > 10) {
+    return { gagal: 'level talent tidak valid: ' + level };
   }
+
+  if (!Array.isArray(c.bloodline)) c.bloodline = [];
+  const ada = c.bloodline.find(x => String(x && x.skill_id) === id);
+  const sekarang = ada ? Math.max(0, Number(ada.level) || 0) : 0;
+  if (tujuan <= sekarang) return { gagal: 'talent sudah level ' + sekarang };
+
+  const biayaBP = BIAYA_TALENT_PER_LEVEL.slice(sekarang, tujuan)
+    .reduce((jumlah, biaya) => jumlah + biaya, 0);
+  const saldo = Math.max(0, Number(c.bloodlinePoint) || 0);
+  if (saldo < biayaBP) {
+    return { gagal: 'TP kurang: butuh ' + biayaBP + ', tersedia ' + saldo };
+  }
+
+  if (ada) {
+    ada.level = String(tujuan);
+    ada.bloodline_id = tabel.bloodline_id;
+  } else {
+    c.bloodline.push({ bloodline_id: tabel.bloodline_id, skill_id: id,
+                       level: String(tujuan) });
+  }
+  c.bloodlinePoint = saldo - biayaBP;
   all[key] = c;
   save(all);
-  return { skillId: id, level: lv, sisaBP: Number(c.bloodlinePoint) || 0 };
+  return { skillId: id, level: tujuan, biayaBP,
+           sisaBP: c.bloodlinePoint };
 }
 
 /* Tandai notice ujian Special Jounin sudah dilihat.
@@ -2069,14 +2530,15 @@ function tandaiSJENotice() {
   return { sudah };
 }
 
-function recordMission(missionId, sukses = true) {
+function recordMission(missionId, sukses = true, characterId = null) {
   const no = String(missionId == null ? '' : missionId).replace(/^msn/i, '').trim();
   if (!/^\d+$/.test(no)) return null;
 
   const all = load();
-  const key = activeKey(all);
+  const key = characterId == null ? activeKey(all) : String(characterId);
   if (!key) return null;
   const c = all[key];
+  if (!c) return null;
 
   if (!c.missions || typeof c.missions !== 'object') c.missions = {};
   const e = c.missions[no] || { success: 0, fail: 0, time: 0 };
@@ -2094,11 +2556,12 @@ function recordMission(missionId, sukses = true) {
            rank: c.rank, rankLama, naikRank };
 }
 
-function addProgress(xpGain, goldGain) {
+function addProgress(xpGain, goldGain, characterId = null) {
   const all = load();
-  const key = activeKey(all);
+  const key = characterId == null ? activeKey(all) : String(characterId);
   if (!key) return null;
   const c = all[key];
+  if (!c) return null;
 
   c.xp   = Math.max(0, (c.xp   || 0) + (Number(xpGain)   || 0));
   c.gold = Math.max(0, (c.gold || 0) + (Number(goldGain) || 0));
@@ -2297,7 +2760,28 @@ function daftarBloodline(c) {
     out.push({ bloodline_id: bid, skill_id: '', level: '' });
   }
 
+  if (c && c.allTalentsMode === true) {
+    const ownedSkills = new Set(out.filter(x => x.skill_id).map(x => x.skill_id));
+    for (const id of ALL_TALENT_SKILL_IDS) {
+      if (!ownedSkills.has(id)) {
+        out.push({ bloodline_id: BLOODLINE_SKILL[id].bloodline_id,
+                   skill_id: id, level: '1' });
+      }
+    }
+  }
+
   return out;
+}
+
+function setAllTalentsMode(id, enabled) {
+  const all = load();
+  const key = String(id);
+  const c = all[key];
+  if (!c) return null;
+  c.allTalentsMode = enabled === true;
+  all[key] = c;
+  save(all);
+  return c.allTalentsMode;
 }
 
 /* Daftar senjutsu yang dimiliki, dalam bentuk yang dibaca klien.
@@ -2326,19 +2810,99 @@ function daftarBloodline(c) {
  * tetap di tabel (mis. 3101 dan 3107 bertipe 0 = pasif, jadi memang tidak
  * pernah muncul sebagai tombol).
  *
- * senjutsu_id yang sah hanya 2 (Toad) dan 3 (Snake) -- SENJUTSU_DATA punya
- * senjutsu1/2/3, tapi senjutsu1 dipakai untuk skill Sage Mode (3000), bukan
- * untuk skill bernomor 31xx.
+ * Tabel skill klien memakai senjutsu_id 1 untuk 3000/3500, 2 untuk
+ * 3001-3010, dan 3 untuk 3101-3110. Efek masing-masing tersedia sampai
+ * level 1 atau 10; level di luar itu membuat panel 2014 menampilkan
+ * "Lv undefined" dan meninggalkan placeholder pada slot berikutnya.
  */
+function infoSkillSenjutsu(skillId) {
+  const id = Number(skillId);
+  if (id === 3000 || id === 3500) return { sistem: 1, maxLevel: 1 };
+  if (Number.isInteger(id) && id >= 3001 && id <= 3010) return { sistem: 2, maxLevel: 10 };
+  if (Number.isInteger(id) && id >= 3101 && id <= 3110) return { sistem: 3, maxLevel: 10 };
+  return null;
+}
+
 function daftarSenjutsu(c) {
-  let sistem = Number(c && c.senjutsuSystem) || 0;
-  if (sistem !== 2 && sistem !== 3) sistem = 2;
-  return (Array.isArray(c && c.senjutsu) ? c.senjutsu : []).map(x => ({
-    senjutsu_id:   String(sistem),
-    skill_id:      String((x && x.skill_id) || ''),
-    level:         String((x && x.level) || '1'),
-    senjutsu_type: (x && x.senjutsu_type != null) ? Number(x.senjutsu_type) : 1,
-  })).filter(x => x.skill_id);
+  const out = (Array.isArray(c && c.senjutsu) ? c.senjutsu : []).flatMap(x => {
+    const id = String((x && x.skill_id) || '');
+    const meta = infoSkillSenjutsu(id);
+    if (!meta) return []; // ID mode 2/3 bukan skill dan tidak ada di tabel klien.
+    const level = Number(x && x.level);
+    return [{
+      senjutsu_id: String(meta.sistem),
+      skill_id: id,
+      level: String(Number.isFinite(level) ? Math.max(1, Math.min(meta.maxLevel, Math.trunc(level))) : 1),
+      senjutsu_type: (x && x.senjutsu_type != null) ? Number(x.senjutsu_type) : 1,
+    }];
+  });
+  if (c && c.allSageMode === true) {
+    const owned = new Set(out.map(x => x.skill_id));
+    const available = ['3000', '3500',
+      ...Array.from({ length: 10 }, (_, i) => String(3001 + i)),
+      ...Array.from({ length: 10 }, (_, i) => String(3101 + i))];
+    for (const id of available) {
+      if (owned.has(id)) continue;
+      const meta = infoSkillSenjutsu(id);
+      out.push({ senjutsu_id: String(meta.sistem), skill_id: id,
+                 level: '1', senjutsu_type: 1 });
+    }
+  }
+  return out;
+}
+
+// 3000 adalah tombol aktivasi Sage Mode. Empat skill pasif (3001, 3006,
+// 3101, 3107) tidak mempunyai tombol pertarungan.
+const ALL_EQUIPPABLE_SAGE_IDS = [
+  '3000', '3500',
+  '3002', '3003', '3004', '3005', '3007', '3008', '3009', '3010',
+  '3102', '3103', '3104', '3105', '3106', '3108', '3109', '3110',
+];
+
+function equipAllSageSkills(c) {
+  if (!c.equip || typeof c.equip !== 'object') c.equip = {};
+  const equipped = skillSlotIds(c.equip.jutsu) || [];
+  const seen = new Set(equipped);
+  for (const id of ALL_EQUIPPABLE_SAGE_IDS) {
+    if (!seen.has(id)) {
+      equipped.push(id);
+      seen.add(id);
+    }
+  }
+  c.equip.jutsu = equipped;
+  return equipped;
+}
+
+function setAllSageMode(id, enabled) {
+  const all = load();
+  const c = all[String(id)];
+  if (!c) return null;
+  c.allSageMode = enabled === true;
+  if (c.allSageMode) equipAllSageSkills(c);
+  if (!c.allSageMode && c.equip && Array.isArray(c.equip.jutsu)) {
+    const owned = new Set((Array.isArray(c.senjutsu) ? c.senjutsu : [])
+      .map(x => String(x && x.skill_id)));
+    c.equip.jutsu = c.equip.jutsu.filter(x => {
+      const id = String(x);
+      return !/^3\d{3}$/.test(id) || owned.has(id);
+    });
+  }
+  all[String(id)] = c;
+  save(all);
+  return c.allSageMode;
+}
+
+const SP_MODES = ['normal', 'full', 'infinite'];
+
+function setSpMode(id, mode) {
+  const all = load();
+  const c = all[String(id)];
+  if (!c) return null;
+  if (!SP_MODES.includes(mode)) throw new RangeError('Mode SP tidak dikenal.');
+  c.spMode = mode;
+  all[String(id)] = c;
+  save(all);
+  return c.spMode;
 }
 
 function expiryBlock(sessionKey) {
@@ -2367,20 +2931,39 @@ function expiryBlock(sessionKey) {
  * Kunci "wpn_1596": garis bawahnya dibuang klien saat menyimpan, sehingga
  * cocok dengan pembacaan getStateDictionary(charId, 'wpn', 'wpn1596').
  */
-/* Bahan milik karakter dalam bentuk "id:jumlah" dipisah koma.
- *
- * Disimpan di characters.json sebagai c.materials = { "1144": 220, ... }.
- * Kalau belum ada, dikembalikan string kosong -- parseRawCharacter @2975
- * memang menjaga nilai kosong.
- */
+const GAUNTLET_STONE_IDS = ['1144', '1145', '1146', '1147', '1148', '1150'];
+
 function daftarMaterial(c) {
-  const m = (c && c.materials) || {};
-  const bagian = [];
-  for (const id of Object.keys(m)) {
-    const n = Number(m[id]) || 0;
-    if (n > 0) bagian.push(String(id).replace(/^item/, '') + ':' + n);
+  const materials = (c && c.materials) || {};
+  return Object.entries(materials)
+    .filter(([id, count]) => !GAUNTLET_STONE_IDS.includes(id) && Number(count) > 0)
+    .map(([id, count]) => String(id).replace(/^item/, '') + ':' + Number(count))
+    .join(',');
+}
+
+function daftarCommonCurrency(c) {
+  const materials = (c && c.materials) || {};
+  return GAUNTLET_STONE_IDS
+    .filter(id => Number(materials[id]) > 0)
+    .map(id => id + ':' + Number(materials[id]))
+    .join(',');
+}
+
+function setGauntletStones(id, stones) {
+  if (!stones || typeof stones !== 'object' || Array.isArray(stones))
+    throw new Error('Jumlah batu tidak valid.');
+  const values = {};
+  for (const stoneId of GAUNTLET_STONE_IDS) {
+    const value = Number(stones[stoneId]);
+    if (!Number.isSafeInteger(value) || value < 0 || value > 999999)
+      throw new Error('Jumlah batu harus antara 0 dan 999999.');
+    values[stoneId] = value;
   }
-  return bagian.join(',');
+  return updateCharacter(id, c => {
+    c.materials ||= {};
+    for (const stoneId of GAUNTLET_STONE_IDS)
+      c.materials[stoneId] = values[stoneId];
+  });
 }
 
 /* Setel jumlah satu bahan. */
@@ -2401,11 +2984,10 @@ function stateGauntlet(c) {
   const g = (c && c.gauntlet) || {};
   const slot = Array.isArray(g.slot) ? g.slot : [];
   const enam = [];
-  for (let i = 0; i < 6; i++) enam.push(Number(slot[i]) || 0);
+  for (let i = 0; i < 6; i++) enam.push(Number(slot[i]) > 0 ? 1 : 0);
   return { 'wpn_1596': enam.join(',') };
-  // Nilai tiap slot: 2 = sudah ter-implant, selain itu belum.
-  // setPanelContent @1946-1956 menguji  stateObj<N> == 2  lalu me-not-kannya
-  // untuk menentukan tombol Implant masih boleh ditekan.
+  // Nilai lama 2 dinormalisasi ke 1: klien menambah 1 saat membuat
+  // stateObj, dan menghitung level dari jumlah nilai mentah yang sama dengan 1.
 }
 
 /* Catat satu perubahan gauntlet ke characters.json. */
@@ -2482,7 +3064,7 @@ function rawCharacter(c, sessionKey) {
     // muat ulang walaupun tersimpan benar di server.
     character_bloodline:                   String(Number(c && c.bloodlinePoint) || 0),
     character_body_set:                    '',
-    character_common_currency:             '',
+    character_common_currency:             daftarCommonCurrency(c),
     character_control:                     0,
     character_earth:                       0,    // elemen: angka, samakan dgn createCharacter
     character_equipped_accessory:          '',
@@ -2508,19 +3090,8 @@ function rawCharacter(c, sessionKey) {
     character_level:                       '',
     character_lightning:                   0,
     character_magatama:                    '',
-    // Bahan (material). BUKAN sekadar daftar id seperti character_item --
-    // formatnya "id:jumlah" dipisah koma, dan parseRawCharacter @3000-3196
-    // memuainya sendiri:
-    //     untuk tiap potongan "1144:220"
-    //         push('item' + '1144') sebanyak int('220') kali
-    //
-    // Itu sebabnya batu gauntlet tidak boleh ditaruh di character_item:
-    //     - Toolkit.getItemCount @101-131 memakai getDisplayData(id).type
-    //       lalu mencarinya di inventaris TYPE_MATERIAL, bukan TYPE_ITEM,
-    //       sehingga 220 batu di character_item terbaca 0/220
-    //     - dan 220 x 6 entri membuat tab Consumable Item lewat kapasitas
-    //
-    // Dengan format ini cuma 6 potongan yang dikirim, bukan 1320 entri.
+    // Keenam batu Gauntlet berjenis currency di data klien, sehingga dikirim
+    // lewat character_common_currency. Hanya bahan lain masuk material.
     character_material:                    daftarMaterial(c),
     character_mission:                     '',
     character_name:                        '',
@@ -2537,7 +3108,8 @@ function rawCharacter(c, sessionKey) {
     character_weapon:                      '',
     character_wind:                        0,
     character_xp:                          '',
-    daily:                                 {},
+    daily:                                 c.dailyTaskDate === new Date().toISOString().slice(0, 10)
+      ? (c.dailyTask || null) : null,
     // expiry_data WAJIB objek berisi kelima array di bawah — bukan [].
     //
     // Di parseRawCharacter, tiap array dipasang lewat penjaga:
@@ -2581,16 +3153,9 @@ function rawCharacter(c, sessionKey) {
   // melempar #1010 di onAmfGetCharacterResult — callback berhenti dan
   // spinner loading tidak pernah ditutup.
   r.character_inv_slots = {
-    // Dinaikkan dari 40. Panel Gear menampilkan "Capacity: 1328/280" dan
-    // menolak menggambar isinya begitu lewat batas. Angka 1328 itu wajar:
-    // klien menghitung jumlah barang dari BANYAKNYA entri di
-    // character_item (duplikat = jumlah), jadi 220 batu x 6 jenis = 1320
-    // entri, bukan 6 baris ber-qty.
-    //
-    // Hubungan 40 -> 280 di layar belum bisa saya pastikan (konstanta
-    // INV_SPACE_ITEM_* di klien namanya di-resolve dinamis), jadi angkanya
-    // dibuat jauh di atas kebutuhan supaya aman pada rumus mana pun.
-    item:      2000,   // dinaikkan dari 40; lihat catatan di atas
+    // Kapasitas besar dipertahankan untuk inventaris item karakter.
+    // Batu Gauntlet masuk character_common_currency, di luar slot ini.
+    item:      2000,
     weapon:    200,
     body_set:  200,
     back:      200,
@@ -2602,6 +3167,10 @@ function rawCharacter(c, sessionKey) {
     material:  4000,
     pet:       99,
   };
+  for (const [kind, extra] of Object.entries(c.inventorySlotAdditions || {})) {
+    if (Object.prototype.hasOwnProperty.call(r.character_inv_slots, kind))
+      r.character_inv_slots[kind] += Math.max(0, Number(extra) || 0);
+  }
 
   r.character_id     = String(c.character_id);
   r.character_name   = c.name;
@@ -2642,8 +3211,17 @@ function rawCharacter(c, sessionKey) {
 
   // Inventaris tersimpan, dipisah per kantong. Klien menambahkan awalannya
   // sendiri, jadi yang dikirim hanya angkanya.
+  const allItems = Array.isArray(c.items) ? c.items.map(String) : [];
+  // Pisahkan ninja essence (seperti 503 - Secret Scroll of Wisdom) dari consumable item biasa.
+  // DataParser.parseRawCharacter memecah character_ninja_essence dengan "," lalu
+  // menambahkan awalan "item" dan memasukkannya ke DBCharacterData.INVENTORY[TYPE_ESSENCE].
+  const essenceList = allItems.filter(it => it === '503');
+  if (Array.isArray(c.essences)) essenceList.push(...c.essences.map(String));
+  const regularItems = allItems.filter(it => it !== '503');
+
   const bag = k => (Array.isArray(c[k]) ? c[k] : []).join(',');
-  r.character_item       = bag('items');
+  r.character_item          = regularItems.join(',');
+  r.character_ninja_essence = essenceList.join(',');
   r.character_weapon     = bag('weapons');
   // Nilai cadangan HARUS tanpa awalan. parseRawCharacter @2332-2348 memecah
   // character_body_set dengan "," lalu menambahkan sendiri awalan "set":
@@ -2724,6 +3302,74 @@ function rawCharacter(c, sessionKey) {
  * Mengirim field yang tidak dipakai tidak berbahaya; yang berbahaya
  * adalah field yang dipakai tapi tidak dikirim, atau salah tipe.
  */
+function scratchDay() {
+  // Ninja Saga lokal dipakai di zona Asia/Jakarta (UTC+7).
+  return new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+function scratchRemaining(c) {
+  if (!c || c.scratchDay !== scratchDay()) return 3;
+  return Math.max(0, Number(c.scratchFreeRemaining) || 0);
+}
+
+function applyScratchReward(id, reward, paidWithToken) {
+  const all = load();
+  const key = String(id);
+  const c = all[key];
+  if (!c) return null;
+  const remaining = scratchRemaining(c);
+  if (!paidWithToken && remaining === 0) return { denied: 'no-free-cards' };
+  const amount = Number(reward.reward_amount);
+  if (!Number.isSafeInteger(amount) || amount <= 0) throw new Error('Invalid scratch reward amount');
+
+  if (!paidWithToken) c.scratchFreeRemaining = remaining - 1;
+  else c.scratchFreeRemaining = remaining;
+  c.scratchDay = scratchDay();
+  let accountDelta = paidWithToken ? -5 : 0;
+  switch (reward.reward_type) {
+    case 'GOLD':
+      c.gold = (Number(c.gold) || 0) + amount;
+      break;
+    case 'XP': {
+      c.xp = (Number(c.xp) || 0) + amount;
+      const oldLevel = Number(c.level) || 1;
+      c.level = getLvByXp(c.xp);
+      if (c.level !== oldLevel) {
+        c.hp = 100 + (c.level - 1) * 40;
+        c.cp = 100 + (c.level - 1) * 40;
+        c.agi = 1 + (c.level - 1);
+        c.rank = hitungRank(c);
+      }
+      break;
+    }
+    case 'TP':
+      c.bloodlinePoint = (Number(c.bloodlinePoint) || 0) + amount;
+      break;
+    case 'TOKEN':
+      accountDelta += amount;
+      break;
+    case 'ITEM':
+      if (!Array.isArray(c.items)) c.items = [];
+      c.items.push(String(amount));
+      break;
+    case 'WEAPON':
+    case 'BACK':
+    case 'SKILL': {
+      const bag = { WEAPON: 'weapons', BACK: 'backitems', SKILL: 'skills' }[reward.reward_type];
+      if (!Array.isArray(c[bag])) c[bag] = [];
+      if (reward.reward_type === 'SKILL') c[bag] = c[bag].filter(x => String(x) !== '401');
+      if (!c[bag].map(String).includes(String(amount))) c[bag].push(String(amount));
+      break;
+    }
+    default:
+      throw new Error('Unsupported scratch reward type: ' + reward.reward_type);
+  }
+  c.scratchAccountDelta = (Number(c.scratchAccountDelta) || 0) + accountDelta;
+  all[key] = c;
+  save(all);
+  return { accountDelta, remaining: c.scratchFreeRemaining };
+}
+
 function buildExtraData(c, sessionKey) {
   const now = Math.floor(Date.now() / 1000);
   const d = {
@@ -2763,10 +3409,15 @@ function buildExtraData(c, sessionKey) {
     // menampilkan "undefined". Nilainya disimpan di karakter sebagai c.mcoin.
     MCoin:      Number(c && c.mcoin) || 0,
     totalMCoin: Number(c && c.mcoin) || 0,
+    totalToken: Number(c && c.token) || 0,
     GodSnapCountDown: null,
     UnstoppableRageCountDown: null,
     achievement: null,
     achievement_point:                       0,
+    attribute_point_bonus: Math.max(0, Math.floor(Number(c.attributePointBonus) || 0)),
+    all_elements_mode: c.allElementsMode === true,
+    all_talents_mode: c.allTalentsMode === true,
+    all_sage_mode: c.allSageMode === true,
     adsArr: null,
     all_event_login_data: null,
     anni5th_tutorial_need_display: null,
@@ -2818,7 +3469,9 @@ function buildExtraData(c, sessionKey) {
     // daily_login4.updateIdlePanel @236-258 baru MENGAKTIFKAN tombol gosok
     // kalau remainScratchTime != 0 atau remainSpcScratchTime != 0; kalau
     // nol keduanya, ketiga tombol tetap disabled dan panel terlihat kosong.
-    free_roulette_times: 3,
+    free_roulette_times: scratchRemaining(c),
+    // Rank.initPlatform memakai ejaan asli ini untuk menampilkan daftar teman.
+    friend_list_avtice: true,
     friend_accept_reward: null,
     friendship_kunai: null,
     gacha: null,
@@ -2837,7 +3490,7 @@ function buildExtraData(c, sessionKey) {
     is_valentine: null,
     kojima_event: null,
     layout: null,
-    level_80_exam_reward_list_read: null,
+    level_80_exam_reward_list_read: c.lv80RewardListRead === true ? 1 : 0,
     lny_2012_cake: null,
     lny_2012_cake_added: null,
     lucky_draw_case: null,
@@ -2857,15 +3510,18 @@ function buildExtraData(c, sessionKey) {
     newsfeed_material_posted: null,
     noticeText: null,
     once_gift:                               [],
-    option_data:                             { music_index: 0, music_volume: 1, sound_on: 1 },
+    option_data:                             c.optionData || { music_index: 0, music_volume: 1, sound_on: 1 },
+    emblem_type:                             Number(c.emblemType) || 1,
+    emblem_xp_bonus_claim:                   c.emblemXpBonusClaim !== false,
+    emblem_xp_bonus_times:                   Math.max(0, Number(c.emblemXpBonusTimes) || 0),
     // Diisi dari c.pets -- lihat daftarPet(). Entri equipped:true masuk
     // Character._pet (ikut bertarung), sisanya ke _standbyPet (koleksi).
     player_pet:                              daftarPet(c, sessionKey),
     popup_arr: null,
-    premium_claim_level: null,
-    premium_claim_skill_set: null,
+    premium_claim_level: c.premiumClaimLevelDate !== new Date().toISOString().slice(0, 10),
+    premium_claim_skill_set: true,
     premium_daily_token: null,
-    prestige:                                0,
+    prestige:                                Number(c && c.prestige) || 0,
     proc:                                    null,
     promo_expired: null,
     promotion: null,
@@ -2877,12 +3533,11 @@ function buildExtraData(c, sessionKey) {
     // onAddBtn, buyItem, buyItemResponse, sellItemResponse). Dengan null,
     // onShow() langsung melempar #1009 dan panel PvP Shop tidak pernah tampil.
     //
-    // Lima field pertama ikut dihitung ke extra_data_hash (lihat
-    // extraDataHash di bawah), dan nilainya 0 semua -> "0,0,0,0,0",
-    // sama seperti saat pvp_record masih null. Jadi hash tidak bergeser.
+    // Lima field statistik pertama ikut dihitung ke extra_data_hash (lihat
+    // extraDataHash di bawah). Saldo pvp_currency tidak ikut hash.
     pvp_record: {
       play: 0, win: 0, lose: 0, disconnect: 0, avg_level_diff: 0,
-      pvp_currency: 0,
+      pvp_currency: Number(c && c.pvp_currency) || 0,
     },
     reaming_pet: null,
     recent_achievement: null,
@@ -2928,6 +3583,7 @@ function buildExtraData(c, sessionKey) {
     // Learn tidak pernah tampil, dan bukan > 1, jadi teks "sudah dipelajari"
     // juga tidak tampil -- halaman terlihat kosong dan tidak bisa diklik.
     senjutsu_system: Number(c && c.senjutsuSystem) || 1,
+    sage_sp_mode: Math.max(0, SP_MODES.indexOf(c && c.spMode)),
     showFanPage: null,
     showNotice: null,
     sje_end_date:                            0,
@@ -3005,26 +3661,430 @@ function buildExtraData(c, sessionKey) {
   return d;
 }
 
+// ---------------------------------------------------------------
+// Trainer helpers
+// ---------------------------------------------------------------
+function setLevel(id, targetLevel, targetXp) {
+  const all = load();
+  const c = all[String(id)];
+  if (!c) return null;
+
+  if (targetXp != null && targetXp !== '') {
+    const xpVal = Number(targetXp);
+    if (!Number.isSafeInteger(xpVal) || xpVal < 0) throw new RangeError('XP harus bilangan bulat positif.');
+    const derivedLevel = getLvByXp(xpVal);
+    if (derivedLevel > 80) throw new RangeError('XP melebihi batas Level 80.');
+    if (targetLevel != null && targetLevel !== '' && Number(targetLevel) !== derivedLevel) {
+      throw new RangeError('Level dan XP tidak cocok. XP tersebut setara Level ' + derivedLevel + '.');
+    }
+    c.xp = xpVal;
+    c.level = derivedLevel;
+  } else {
+    const target = Number(targetLevel);
+    if (!Number.isSafeInteger(target) || target < 1 || target > 80) {
+      throw new RangeError('Level harus antara 1 dan 80.');
+    }
+    c.level = target;
+    c.xp = xpForLevel(target);
+  }
+
+  c.hp    = 100 + (c.level - 1) * 40;
+  c.cp    = 100 + (c.level - 1) * 40;
+  c.agi   = 1   + (c.level - 1);
+  c.rank  = hitungRank(c);
+  all[String(id)] = c;
+  save(all);
+  return c;
+}
+
+function setCurrencies(id, data) {
+  const all = load();
+  const c = all[String(id)];
+  if (!c) return null;
+  if (data.gold != null) c.gold = Math.max(0, Number(data.gold) || 0);
+  if (data.token != null) c.token = Math.max(0, Number(data.token) || 0);
+  if (data.crystal != null) c.crystal = Math.max(0, Number(data.crystal) || 0);
+  if (data.mcoin != null) c.mcoin = Math.max(0, Number(data.mcoin) || 0);
+  if (data.prestige != null) c.prestige = Math.max(0, Math.floor(Number(data.prestige) || 0));
+  if (data.bloodlinePoint != null) c.bloodlinePoint = Math.max(0, Math.floor(Number(data.bloodlinePoint) || 0));
+  if (data.senjutsuSS != null) c.senjutsuSS = Math.max(0, Math.floor(Number(data.senjutsuSS) || 0));
+  if (data.heartOfKari != null) {
+    if (!c.materials) c.materials = {};
+    c.materials['634'] = Math.max(0, Math.floor(Number(data.heartOfKari) || 0));
+  }
+  if (data.crystalOfKari != null) {
+    if (!c.materials) c.materials = {};
+    c.materials['635'] = Math.max(0, Math.floor(Number(data.crystalOfKari) || 0));
+  }
+  if (c.clan && data.clanGold != null) c.clan.gold = Math.max(0, Math.floor(Number(data.clanGold) || 0));
+  if (c.clan && data.clanToken != null) c.clan.token = Math.max(0, Math.floor(Number(data.clanToken) || 0));
+  if (data.pvp_currency != null) {
+    c.pvp_currency = Math.max(0, Math.floor(Number(data.pvp_currency) || 0));
+    if (!c.extraData) c.extraData = {};
+    if (!c.extraData.pvp_record) {
+      c.extraData.pvp_record = { play: 0, win: 0, lose: 0, disconnect: 0, avg_level_diff: 0, pvp_currency: 0 };
+    }
+    c.extraData.pvp_record.pvp_currency = c.pvp_currency;
+  }
+  all[String(id)] = c;
+  save(all);
+  return c;
+}
+
+function unlockGauntletMax(id) {
+  const all = load();
+  const c = all[String(id)];
+  if (!c) return null;
+
+  c.weapons = Array.isArray(c.weapons) ? c.weapons.map(String) : [];
+  if (!c.weapons.includes('1596')) c.weapons.push('1596');
+
+  c.skills = Array.isArray(c.skills) ? c.skills.map(String) : [];
+  for (const skillId of ['902', ...GAUNTLET_SLOT_SKILL_IDS, '908']) {
+    if (!c.skills.includes(skillId)) c.skills.push(skillId);
+  }
+
+  c.gauntlet = {
+    slot: [1, 1, 1, 1, 1, 1],
+    slotSkill: [1, 1, 1, 1, 1, 1],
+    power: 1,
+  };
+
+  c.materials ||= {};
+  for (const stoneId of GAUNTLET_STONE_IDS)
+    c.materials[stoneId] = Math.max(220, Number(c.materials[stoneId]) || 0);
+
+  all[String(id)] = c;
+  save(all);
+  return c;
+}
+
+function unlockAllTails(id) {
+  const all = load();
+  const c = all[String(id)];
+  if (!c) return null;
+  const TAILS = [
+    { id: '146', name: 'Ichibi', swfName: 'tail_1', clsName: 'Tail_1' },
+    { id: '141', name: 'Nibi', swfName: 'tail_2', clsName: 'Tail_2' },
+    { id: '131', name: 'Sanbi', swfName: 'tail_3', clsName: 'Tail_3' },
+    { id: '86',  name: 'Yobi', swfName: 'tail_4', clsName: 'Tail_4' },
+    { id: '74',  name: 'Gobi', swfName: 'tail_5', clsName: 'Tail_5' },
+    { id: '73',  name: 'Rokubi', swfName: 'tail_6', clsName: 'Tail_6' },
+    { id: '71',  name: 'Nanabi', swfName: 'tail_7', clsName: 'Tail_7' },
+    { id: '68',  name: 'Hachibi', swfName: 'tail_8', clsName: 'Tail_8' },
+    { id: '65',  name: 'Kyubi', swfName: 'tail_9', clsName: 'Tail_9' },
+  ];
+  if (!Array.isArray(c.pets)) c.pets = [];
+  for (const t of TAILS) {
+    const existing = c.pets.find(p => String(p.id) === t.id);
+    if (!existing) {
+      c.pets.push({
+        id: t.id,
+        name: t.name,
+        level: 1,
+        xp: 0,
+        swfName: t.swfName,
+        clsName: t.clsName,
+        equipped: false,
+        trained: [0],
+        skills: []
+      });
+    }
+  }
+  all[String(id)] = c;
+  save(all);
+  return c;
+}
+
+function unlockBasicSkills(id) {
+  const all = load();
+  const c = all[String(id)];
+  if (!c) return null;
+  if (!Array.isArray(c.skills)) c.skills = [];
+  const SKILLS_TO_ADD = [
+    '13', '16', '6', '17', '29', '30', '45', '46', '52', '69', '67', '74', '82', '92', '97',
+    '10', '20', '28', '11', '19', '18', '21', '47', '53', '36', '70', '65', '75', '79', '86', '93', '98',
+    '12', '34', '7', '31', '32', '44', '48', '50', '55', '59', '72', '63', '77', '80', '88', '95', '99',
+    '43', '68', '62', '61', '107', '90', '139', '108', '137', '189', '191', '186', '190',
+    '140', '102', '146', '123', '112', '118', '156', '203', '171', '126', '166', '178', '3', '39', '85', '161', '151',
+    '4', '57', '184', '271', '272', '273', '274', '275', '276', '277', '278', '279', '280', '281', '282', '283', '284', '286',
+    '902', '703', '719', '721', '854', '896', '914'
+  ];
+  const sSet = new Set(c.skills.map(String));
+  for (const sk of SKILLS_TO_ADD) {
+    if (!sSet.has(sk)) {
+      c.skills.push(sk);
+      sSet.add(sk);
+    }
+  }
+  all[String(id)] = c;
+  save(all);
+  return c;
+}
+
+function refillClanStamina(id) {
+  const all = load();
+  const c = all[String(id)];
+  if (!c) return null;
+  if (c.clan) {
+    c.clan.character_stamina = c.clan.character_max_stamina || 200;
+  }
+  all[String(id)] = c;
+  save(all);
+  return c;
+}
+
+function resetCharacter(id) {
+  const all = load();
+  const c = all[String(id)];
+  if (!c) return null;
+  c.level = 1;
+  c.xp = 0;
+  c.hp = 100;
+  c.cp = 100;
+  c.agi = 1;
+  c.str = 1;
+  c.sta = 1;
+  c.chakra = 1;
+  c.intel = 1;
+  c.ap = 0;
+  c.attributePointBonus = 0;
+  c.gold = 500;
+  c.token = 0;
+  c.crystal = 0;
+  c.rank = 1;
+  c.skills = [];
+  c.items = [];
+  c.weapons = [];
+  c.bodysets = [];
+  c.hairs = [];
+  c.backitems = [];
+  c.accessories = [];
+  c.pets = [];
+  c.bloodline = [];
+  c.allTalentsMode = false;
+  c.allSageMode = false;
+  c.allElementsMode = false;
+  c.autoElementEquipIds = [];
+  c.spMode = 'normal';
+  c.senjutsu = [];
+  c.missions = {};
+  c.equip = { weapon: '', bodySet: '', backItem: '', accessory: '' };
+  all[String(id)] = c;
+  save(all);
+  return c;
+}
+
+const ELEMENT_SKILLS = {
+  wind: [
+    '13', '16', '6', '17', '29', '30', '45', '46', '52', '39',
+    '69', '67', '74', '82', '85', '92', '97', '140', '102', '161',
+    '146', '123', '112', '118', '151', '156', '203', '171', '285', '126',
+    '166', '178', '287', '215', '319', '314', '329', '324', '625'
+  ],
+  fire: [
+    '10', '20', '28', '11', '19', '18', '21', '47', '53', '36',
+    '70', '65', '75', '79', '86', '93', '98', '141', '103', '162',
+    '147', '130', '113', '117', '152', '157', '204', '172', '234', '127',
+    '167', '179', '236', '216', '320', '315', '325', '330', '629'
+  ],
+  lightning: [
+    '1', '38', '14', '26', '5', '15', '27', '49', '54', '35',
+    '71', '66', '76', '83', '87', '94', '100', '142', '104', '163',
+    '148', '135', '114', '119', '153', '158', '205', '173', '302', '125',
+    '168', '180', '304', '316', '217', '321', '331', '326', '633'
+  ],
+  earth: [
+    '12', '34', '7', '31', '32', '44', '48', '50', '55', '59',
+    '72', '63', '77', '80', '88', '95', '99', '143', '105', '164',
+    '149', '120', '115', '132', '154', '159', '206', '174', '251', '128',
+    '169', '181', '253', '218', '322', '327', '317', '332', '637'
+  ],
+  water: [
+    '9', '24', '22', '33', '23', '58', '25', '40', '51', '56',
+    '60', '73', '64', '78', '84', '81', '89', '96', '110', '101',
+    '144', '111', '106', '165', '150', '196', '133', '116', '197', '121',
+    '155', '160', '207', '198', '175', '268', '129', '199', '170', '182',
+    '200', '270', '323', '318', '219', '371', '328', '333', '372', '641'
+  ]
+};
+
+const ALL_ELEMENT_SKILL_IDS = [...new Set(Object.values(ELEMENT_SKILLS).flat())];
+
+function setAllElementsMode(id, enabled) {
+  const all = load();
+  const key = String(id);
+  const c = all[key];
+  if (!c) return null;
+  if (!Array.isArray(c.skills)) c.skills = [];
+  if (!Array.isArray(c.elements)) c.elements = [0, 0, 0, 0, 0];
+  if (enabled === true) {
+    c.elements = c.elements.map(value => Math.max(1, Number(value) || 0));
+    c.allElementsMode = true;
+    coverAllElementsPoints(c);
+  } else {
+    c.allElementsMode = false;
+  }
+  c.autoElementEquipIds = [];
+
+  all[key] = c;
+  save(all);
+  return c.allElementsMode;
+}
+
+function addSecretScrolls(id, count) {
+  const all = load();
+  const key = String(id || activeKey(all));
+  const c = all[key];
+  if (!c) return null;
+  if (!Array.isArray(c.items)) c.items = [];
+  const n = Math.max(1, parseInt(count, 10) || 1);
+  for (let i = 0; i < n; i++) {
+    c.items.push('503');
+  }
+  all[key] = c;
+  save(all);
+  return c;
+}
+
+function getSecretScrollCount(c) {
+  if (!c || !Array.isArray(c.items)) return 0;
+  return c.items.filter(it => String(it) === '503').length;
+}
+
+function unlockElementSkills(id, element) {
+  const all = load();
+  const key = String(id || activeKey(all));
+  const c = all[key];
+  if (!c) return [];
+  if (!Array.isArray(c.skills)) c.skills = [];
+  if (!Array.isArray(c.elements)) c.elements = [0, 0, 0, 0, 0];
+  const sSet = new Set(c.skills.map(String));
+  const learned = [];
+
+  const ELEM_IDX = { fire: 0, water: 1, wind: 2, earth: 3, lightning: 4 };
+
+  let elements = [];
+  if (element === 'all') {
+    elements = ['fire', 'lightning', 'earth', 'wind', 'water'];
+  } else if (ELEMENT_SKILLS[element]) {
+    elements = [element];
+  }
+
+  for (const elem of elements) {
+    if (typeof ELEM_IDX[elem] !== 'undefined') {
+      if (!c.elements[ELEM_IDX[elem]]) c.elements[ELEM_IDX[elem]] = 1;
+    }
+    const list = ELEMENT_SKILLS[elem] || [];
+    for (const sk of list) {
+      if (!sSet.has(sk)) {
+        c.skills.push(sk);
+        sSet.add(sk);
+        learned.push(sk);
+      }
+    }
+  }
+
+  all[key] = c;
+  save(all);
+  return learned;
+}
+
+function changeAppearance(charId, hair, hairColor, skinColor) {
+  const all = load();
+  const key = String(charId || activeKey(all));
+  const c = all[key];
+  if (!c) return null;
+  if (hair != null && hair !== '') {
+    c.hair = String(hair).replace(/^hair_/, '');
+  }
+  if (hairColor != null) {
+    c.hair_color = Array.isArray(hairColor) ? hairColor : [hairColor];
+  }
+  if (skinColor != null) {
+    c.skin_color = Number(skinColor);
+  }
+  all[key] = c;
+  save(all);
+  return c;
+}
+
+function buyHair(hairId) {
+  const all = load();
+  const key = String(activeKey(all));
+  const c = all[key];
+  if (!c) return null;
+  if (!Array.isArray(c.hairs)) c.hairs = [];
+  const num = String(hairId).replace(/^hair/, '');
+  if (!c.hairs.includes(num)) {
+    c.hairs.push(num);
+  }
+  const { HAIR_DATA } = require('./hairdata');
+  const found = HAIR_DATA.find(h => h.id === String(hairId));
+  if (found) {
+    if (found.token && c.token != null) {
+      c.token = Math.max(0, c.token - found.token);
+    }
+    if (found.gold && c.gold != null) {
+      c.gold = Math.max(0, c.gold - found.gold);
+    }
+    if (found.swfName) {
+      c.hair = found.swfName;
+    }
+  }
+  all[key] = c;
+  save(all);
+  return c;
+}
+
+function changeHair(hairId) {
+  const all = load();
+  const key = String(activeKey(all));
+  const c = all[key];
+  if (!c) return null;
+  const { HAIR_DATA } = require('./hairdata');
+  const found = HAIR_DATA.find(h => h.id === String(hairId));
+  if (found && found.swfName) {
+    c.hair = found.swfName;
+  } else {
+    c.hair = String(hairId).replace(/^hair_/, '');
+  }
+  all[key] = c;
+  save(all);
+  return c;
+}
+
 module.exports = {
+  updateCharacter, allCharacters,
+  changeAppearance, buyHair, changeHair,
+  setSkillProfile, getSkillProfiles,
+  setLevel, setCurrencies, unlockAllTails, unlockBasicSkills, refillClanStamina, resetCharacter, unlockGauntletMax,
+  addSecretScrolls, getSecretScrollCount, unlockElementSkills, ELEMENT_SKILLS,
+  setAllElementsMode, ALL_ELEMENT_SKILL_IDS,
   setGauntlet, stateGauntlet, bersihkanBatuGauntlet, stateKage, setKage,
-  daftarMaterial, setMaterial,
+  daftarMaterial, setMaterial, setGauntletStones, GAUNTLET_STONE_IDS,
   validate, DB_TYPES, extraDataHash, rawCharacter,
   getLvByXp, xpForLevel, addProgress, mergeStats,
   recordMission, serializeMissions, simpanKelasSJ,
   graduasiSennin, tierSennin, tandaiSJENotice, tambahSenjutsuSS,
   pelajariSenjutsu, BIAYA_SENJUTSU_GOLD,
-  konversiSS, naikkanSkillSenjutsu, SS_TOKEN_VALUE, SS_POINT_VALUE,
+  konversiSS, naikkanSkillSenjutsu, maksimalkanSkillSenjutsu, SS_TOKEN_VALUE, SS_POINT_VALUE,
   konversiBP, bukaBloodline, naikkanSkillBloodline, bloodlinePoin,
+  setAllTalentsMode, ALL_TALENT_SKILL_IDS,
+  setAllSageMode, setSpMode, SP_MODES, ALL_EQUIPPABLE_SAGE_IDS,
   buatKlan, klanAktif, bubarkanKlan, klanKosong, BIAYA_BUAT_KLAN_TOKEN,
   donasiKlan, anggotaKlan,
   bangunBangunanKlan, daftarBangunan, hitungBonusKlan, BUILDING_DATA,
   upgradeStaminaKlan, restoreStaminaKlan, tambahSlotAnggota,
   setActiveCharacter, getActiveId, characterById, hitungRank,
   createCharacter, firstCharacter, listCharacters,
-  setElements, addItem, removeItem, addSkill, setEquip, kantongDari,
+  setElements, refundAttributePoints, addAttributePointBonus, addItem, removeItem, addSkill, buyAcademySkill, setEquip, kantongDari,
   addPet, removePet, setPetEquipped, listPets, daftarPet, xpPetUntukLevel,
   petBuyResult, bayarPet, petAsset, petById, PET_DATA,
   petBisaBertarung, skillPetTerlatih, latihSkillPet, biayaLatih,
-  statusMisiSennin, SS_MISSION,
-  databaseCharacter, buildExtraData,
+  statusMisiSennin, SS_MISSION, tandaiHadiahLv80Dibaca,
+  mulaiMisiSennin, selesaikanMisiSennin, segarkanMisiSennin,
+  S_LEVEL_MISSIONS, statusMisiSLevel, mulaiMisiSLevel,
+  beliRamenSLevel, pakaiRamenSLevel, selesaikanMisiSLevel,
+  databaseCharacter, buildExtraData, scratchRemaining, applyScratchReward,
 };
