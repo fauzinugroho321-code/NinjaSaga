@@ -17,7 +17,7 @@ function createWeaponImporterRoutes(repo, characters) {
       else if (!tooLarge) chunks.push(chunk);
     });
     req.on('end', () => {
-      if (tooLarge) return json(res, 413, { success: false, message: 'Ukuran unggahan terlalu besar (maksimal PNG 5 MB).' });
+      if (tooLarge) return json(res, 413, { success: false, message: 'Ukuran unggahan terlalu besar (maksimal PNG/GIF 5 MB).' });
       let data;
       try { data = JSON.parse(Buffer.concat(chunks).toString('utf8')); }
       catch { return json(res, 400, { success: false, message: 'JSON tidak valid.' }); }
@@ -31,9 +31,9 @@ function createWeaponImporterRoutes(repo, characters) {
       const html = fs.readFileSync(path.join(__dirname, 'weapon-importer.html'));
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' }); res.end(html); return true;
     }
-    if (url.pathname === '/trainer/weapons/editor/weapon-position.js' && req.method === 'GET') {
+    if (['/trainer/weapons/editor/weapon-position.js', '/trainer/weapons/editor/weapon-animation.js'].includes(url.pathname) && req.method === 'GET') {
       res.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8', 'Cache-Control': 'no-store' });
-      res.end(fs.readFileSync(path.join(__dirname, 'weapon-position.js'))); return true;
+      res.end(fs.readFileSync(path.join(__dirname, path.basename(url.pathname)))); return true;
     }
     const editor = /^\/trainer\/weapons\/editor\/(rig\.json|(?:profile|battle)-(?:weapon|handweapon)-(?:back|front)\.png)$/.exec(url.pathname);
     if (editor && req.method === 'GET') {
@@ -46,12 +46,12 @@ function createWeaponImporterRoutes(repo, characters) {
       catch (error) { json(res, 500, { success: false, message: error.message }); }
       return true;
     }
-    const preview = /^\/trainer\/weapons\/preview\/(wpn\d+)\.png$/.exec(url.pathname);
+    const preview = /^\/trainer\/weapons\/preview\/(wpn\d+)\.(png|gif)$/.exec(url.pathname);
     if (preview && req.method === 'GET') {
-      const id = preview[1];
-      const image = id === 'wpn9000' ? path.join(repo, 'tools/custom-weapons/obsidian-twin-claws/weapon.png') : path.join(repo, 'tools/custom-weapons/imports', id, 'weapon.png');
+      const id = preview[1], extension = preview[2];
+      const image = id === 'wpn9000' ? path.join(repo, 'tools/custom-weapons/obsidian-twin-claws/weapon.png') : path.join(repo, 'tools/custom-weapons/imports', id, 'weapon.' + extension);
       if (!importer.list().some(x => x.id === id) || !fs.existsSync(image)) { res.writeHead(404); res.end(); }
-      else { res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'no-store' }); res.end(fs.readFileSync(image)); }
+      else { res.writeHead(200, { 'Content-Type': 'image/' + (id === 'wpn9000' ? 'png' : extension), 'Cache-Control': 'no-store' }); res.end(fs.readFileSync(image)); }
       return true;
     }
     if (url.pathname === '/api/trainer/weapons/import' && req.method === 'POST') {

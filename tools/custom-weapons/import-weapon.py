@@ -1,7 +1,7 @@
 """Compile a PNG weapon and append one catalog entry; writes only to staging.
 python3 import-weapon.py REPO IMAGE.png METADATA.json OUTPUT_DIRECTORY
 """
-import hashlib, json, math, struct, subprocess, sys, zlib
+import hashlib, json, math, os, struct, subprocess, sys, tempfile, zlib
 from pathlib import Path
 import xml.etree.ElementTree as ET
 BASE_GETTER = bytes.fromhex('d030d0661f668d01')
@@ -86,7 +86,19 @@ def validate_png(raw):
 
 def build_asset(repo, image, metadata, out):
     raw=image.read_bytes()
-    w,h=validate_png(raw)
+    animated=raw[:6] in (b'GIF87a',b'GIF89a')
+    frames=[]
+    if animated:
+        decoded=out/'frames'
+        helper=Path(__file__).resolve().parents[2]/'server/weapon-animation.js'
+        subprocess.run([os.environ.get('NINJA_NODE','node'),str(helper),str(image),str(decoded)],check=True)
+        info=json.loads((decoded/'frames.json').read_text())
+        w,h=info['width'],info['height']
+        frames=[((decoded/f['file']).read_bytes(),f['delay']) for f in info['frames']]
+        raw=frames[0][0]
+    else:
+        w,h=validate_png(raw)
+    (out/'thumbnail.png').write_bytes(raw)
     _,donor=read_tags((repo/'web/cdn/swf/latest/swf/items/wpn_895.swf').read_bytes())
     abc=[tag(c,d) for c,d in donor if c==82]
     assert len(abc)==1
@@ -98,8 +110,20 @@ def build_asset(repo, image, metadata, out):
     tx=round(20*(metadata.get('offsetX',0)-a*px-c*py));ty=round(20*(metadata.get('offsetY',0)-b*px-d*py))
     tags=[tag(69,struct.pack('<I',9)),tag(9,b'\x55\x55\x55'),tag(21,struct.pack('<H',10)+raw)]
     tags += [rectangle_shape(1,w*20,h*20,bitmap=10)]
-    tags += [sprite(2,[place(1,1,matrix(a,d,tx,ty,b,c))])]
-    # Gear's icon is 100 x 100 game units, independent of hand pivot and rotation.
+    delays=[]
+    if animated:
+        timeline=[]
+        for index,(png,delay) in enumerate(frames):
+            bitmap_id=100+index*2;shape_id=bitmap_id+1
+            tags += [tag(21,struct.pack('<H',bitmap_id)+png),rectangle_shape(shape_id,w*20,h*20,bitmap=bitmap_id)]
+            if index: timeline.append(tag(28,struct.pack('<H',1)))
+            timeline += [place(shape_id,1),tag(1)]
+            delays.append(max(1,math.floor(delay/metadata.get('animationSpeed',1)+0.5)))
+        tags += [tag(39,struct.pack('<HH',3,len(frames))+b''.join(timeline)+tag(0))]
+        tags += [sprite(2,[place(3,1,matrix(a,d,tx,ty,b,c),name='artwork')])]
+    else:
+        tags += [sprite(2,[place(1,1,matrix(a,d,tx,ty,b,c))])]
+    # A static first-frame icon keeps the Gear inventory inexpensive to render.
     icon_scale=min(90/w,90/h)
     tags += [sprite(5,[place(1,1,matrix(icon_scale,icon_scale,round((100-w*icon_scale)*10),round((100-h*icon_scale)*10)))])]
     tags += abc
@@ -107,7 +131,10 @@ def build_asset(repo, image, metadata, out):
     asset=out/(metadata['swfName']+'.swf')
     base=out/(metadata['swfName']+'-base.swf')
     base.write_bytes(swf(rect(-2000,2000,-4000,2000)+struct.pack('<HH',24*256,1)+b''.join(tags)))
-    subprocess.run(['java','-Djava.awt.headless=true','-Duser.home=/private/tmp','-Xmx1g','-jar',str(repo/'tools/ffdec/ffdec.jar'),'-onerror','abort','-replace',str(base),str(asset),'weapon',str(Path(__file__).with_name('hand-weapon.as'))],check=True)
+    template=Path(__file__).with_name('hand-weapon.as').read_text(encoding='utf-8')
+    source=out/'animated-weapon.as'
+    source.write_text(template.replace('/*__FRAME_DELAYS__*/100',','.join(map(str,delays)) if delays else '100'))
+    subprocess.run(['java','-Djava.awt.headless=true','-Duser.home='+tempfile.gettempdir(),'-Xmx1g','-jar',str(repo/'tools/ffdec/ffdec.jar'),'-onerror','abort','-replace',str(base),str(asset),'weapon',str(source)],check=True)
     _,built=read_tags(asset.read_bytes())
     linkage=next(data for code,data in built if code==76)
     assert b'icon\0' in linkage and b'weapon\0' in linkage
@@ -159,7 +186,7 @@ def build_catalog(repo, metadata, out, run):
     qname=len(names)
     ET.SubElement(names,'item',type='Multiname',kind='7',name_index=str(string(metadata['id'])),namespace_index=str(ns),namespace_set_index='0',qname_index='0')
     # Keep every existing custom entry; append one assignment before returnvalue.
-    weapon={k:v for k,v in metadata.items() if k not in ('displayHeight','pivotX','pivotY','rotation','offsetX','offsetY','flipX','flipY')}
+    weapon={k:v for k,v in metadata.items() if k not in ('displayHeight','pivotX','pivotY','rotation','offsetX','offsetY','flipX','flipY','animationSpeed','sourceFormat','frameCount','durationMs')}
     code=original[:-1]+b'\x2a'+push(weapon)+b'\x61'+u30(qname)+b'\x48'
     body.set('codeBytes',code.hex());body.set('max_stack',str(max(int(body.get('max_stack')),len(weapon)*2+8)))
     tree.write(out/'catalog-patched.xml',encoding='utf-8',xml_declaration=True)
@@ -191,11 +218,11 @@ def build_catalog(repo, metadata, out, run):
 def main():
     repo,image,spec,out=map(Path,sys.argv[1:5]);out.mkdir(parents=True,exist_ok=True)
     asset_only=len(sys.argv)>5 and sys.argv[5]=='--asset-only'
-    metadata=json.loads(spec.read_text())
+    metadata=json.loads(spec.read_text(encoding='utf-8'))
     assert metadata['id'].startswith('wpn') and metadata['id'][3:].isdigit()
     assert metadata['swfName']=='wpn_'+metadata['id'][3:]
     def run(*args):
-        subprocess.run(['java','-Djava.awt.headless=true','-Duser.home=/private/tmp','-Xmx1g','-jar',str(repo/'tools/ffdec/ffdec.jar')]+list(map(str,args)),check=True)
+        subprocess.run(['java','-Djava.awt.headless=true','-Duser.home='+tempfile.gettempdir(),'-Xmx1g','-jar',str(repo/'tools/ffdec/ffdec.jar')]+list(map(str,args)),check=True)
     print('BUILD: weapon/icon',flush=True);build_asset(repo,image,metadata,out)
     if not asset_only:
         print('BUILD: catalog',flush=True);build_catalog(repo,metadata,out,run)

@@ -4,6 +4,7 @@ const path = require('node:path');
 const os = require('node:os');
 const crypto = require('node:crypto');
 const { spawn } = require('node:child_process');
+const { decodeGIF } = require('./weapon-animation');
 
 function numeric(value, fallback, min, max, integer = false) {
   const result = value === undefined ? fallback : Number(value);
@@ -24,6 +25,7 @@ function metadata(input, id) {
     premium: false, agility: 0, dodge: 0, critical: 0, vendor: false, animation,
     expiry_hour: 0, expiry_group_id: 0, effect: [], extra_effect: null,
     forge_material: { material: '' }, forge_base: 0, forge_group_id: 0, development: 0, relate_set: '', hash: '',
+    animationSpeed: numeric(input.animationSpeed, 1, 0.25, 4),
     displayHeight: numeric(input.displayHeight, 120, 20, 350),
     pivotX: numeric(input.pivotX, 0.5, 0, 1), pivotY: numeric(input.pivotY, 0.85, 0, 1),
     rotation: numeric(input.rotation, 0, -180, 180),
@@ -31,16 +33,27 @@ function metadata(input, id) {
     flipX: input.flipX === true, flipY: input.flipY === true,
   };
 }
-function decodeImage(value) {
-  if (typeof value !== 'string' || !/^data:image\/png;base64,[A-Za-z0-9+/]+=*$/.test(value)) throw new Error('Pilih gambar PNG.');
-  const image = Buffer.from(value.slice(value.indexOf(',') + 1), 'base64');
-  if (image.length > 5 * 1024 * 1024 || image.length < 33 || !image.subarray(0, 8).equals(Buffer.from('89504e470d0a1a0a', 'hex')))
-    throw new Error('PNG tidak valid atau lebih besar dari 5 MB.');
+function imageDetails(image) {
+  if (image.subarray(0, 6).toString('ascii').match(/^GIF8[79]a$/)) {
+    const decoded = decodeGIF(image);
+    return { sourceFormat: 'gif', frameCount: decoded.frames.length, durationMs: decoded.duration };
+  }
+  if (image.length < 33 || !image.subarray(0, 8).equals(Buffer.from('89504e470d0a1a0a', 'hex')))
+    throw new Error('Gambar PNG atau GIF tidak valid.');
   const width = image.readUInt32BE(16), height = image.readUInt32BE(20);
   if (!width || !height || width > 4096 || height > 4096 || image[24] !== 8 || image[25] !== 6)
     throw new Error('PNG harus RGBA 8-bit dan maksimal 4096 × 4096 piksel. Pilih ulang gambar melalui alat impor.');
-  return image;
+  return { sourceFormat: 'png', frameCount: 1, durationMs: 0 };
 }
+function decodeSource(value) {
+  if (typeof value !== 'string' || !/^data:image\/(?:png|gif);base64,[A-Za-z0-9+/]+=*$/.test(value)) throw new Error('Pilih gambar PNG atau GIF.');
+  const image = Buffer.from(value.slice(value.indexOf(',') + 1), 'base64');
+  if (image.length > 5 * 1024 * 1024) throw new Error('Gambar maksimal 5 MB.');
+  const details = imageDetails(image);
+  if (!value.startsWith('data:image/' + details.sourceFormat + ';')) throw new Error('Format gambar tidak sesuai isinya.');
+  return { image, details };
+}
+function decodeImage(value) { return decodeSource(value).image; }
 const hash = file => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
 function atomicWrite(file, data) {
   const temp = file + '.import-' + crypto.randomUUID();
@@ -78,29 +91,32 @@ function createWeaponImporter(repo, characters) {
     let image, weapon;
     if (editing) {
       const existing = list().find(x => x.id === input.editWeaponId);
-      const sourceImage = existing && path.join(imports, existing.id, 'weapon.png');
+      const sourceImage = existing && path.join(imports, existing.id, existing.sourceFormat === 'gif' ? 'weapon.gif' : 'weapon.png');
       if (!existing || existing.id === 'wpn9000' || !fs.existsSync(sourceImage)) throw new Error('Senjata ini tidak mendukung editor posisi.');
-      const changes = Object.fromEntries(['displayHeight','rotation','pivotX','pivotY','offsetX','offsetY','flipX','flipY'].map(key => [key, input[key] === undefined ? existing[key] : input[key]]));
+      const changes = Object.fromEntries(['displayHeight','rotation','pivotX','pivotY','offsetX','offsetY','flipX','flipY','animationSpeed'].map(key => [key, input[key] === undefined ? existing[key] : input[key]]));
       const validated = metadata({ ...existing, ...changes }, Number(existing.id.slice(3)));
       weapon = { ...existing, ...Object.fromEntries(Object.keys(changes).map(key => [key, validated[key]])) };
       image = fs.readFileSync(sourceImage);
+      Object.assign(weapon, imageDetails(image));
     } else {
-      image = decodeImage(input && input.image);
-      weapon = metadata(input, nextId());
+      const source = decodeSource(input && input.image);
+      image = source.image;
+      weapon = { ...metadata(input, nextId()), ...source.details };
     }
     const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'ninja-weapon-import-'));
     const before = hash(catalog);
     const priorAsset = editing ? hash(path.join(items, weapon.swfName + '.swf')) : null;
     const spec = path.join(folder, 'weapon-data.json');
     fs.writeFileSync(spec, JSON.stringify(weapon));
-    fs.writeFileSync(path.join(folder, 'image.png'), image);
+    const sourceName = weapon.sourceFormat === 'gif' ? 'image.gif' : 'image.png';
+    fs.writeFileSync(path.join(folder, sourceName), image);
     const job = { id: crypto.randomUUID(), state: 'building', message: editing ? 'Memperbarui posisi senjata…' : 'Membuat aset dan memeriksa katalog…', weapon, operation: editing ? 'position' : 'import' };
     while (jobs.size >= 10) jobs.delete(jobs.keys().next().value);
     jobs.set(job.id, job); busy = true;
-    const child = spawn(process.env.NINJA_PYTHON || 'python3', [
+    const child = spawn(process.env.NINJA_PYTHON || (process.platform === 'win32' ? 'python' : 'python3'), [
       path.join(repo, 'tools/custom-weapons/import-weapon.py'), repo,
-      path.join(folder, 'image.png'), spec, path.join(folder, 'build'), ...(editing ? ['--asset-only'] : []),
-    ], { stdio: ['ignore', 'pipe', 'pipe'] });
+      path.join(folder, sourceName), spec, path.join(folder, 'build'), ...(editing ? ['--asset-only'] : []),
+    ], { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, NINJA_NODE: process.execPath } });
     let output = '', settled = false;
     const capture = data => { output = (output + data.toString()).slice(-16000); };
     child.stdout.on('data', capture); child.stderr.on('data', capture);
@@ -134,7 +150,10 @@ function createWeaponImporter(repo, characters) {
         if (oldRegistry) fs.writeFileSync(path.join(backup, 'custom-weapons.json'), oldRegistry);
         writeStarted = true;
         fs.mkdirSync(destination, { recursive: true });
-        if (!editing) fs.copyFileSync(path.join(folder, 'image.png'), path.join(destination, 'weapon.png'));
+        if (!editing) {
+          fs.copyFileSync(path.join(folder, 'build', 'thumbnail.png'), path.join(destination, 'weapon.png'));
+          if (weapon.sourceFormat === 'gif') fs.copyFileSync(path.join(folder, sourceName), path.join(destination, 'weapon.gif'));
+        }
         atomicWrite(path.join(destination, 'weapon-data.json'), fs.readFileSync(spec));
         atomicWrite(asset, fs.readFileSync(path.join(folder, 'build', weapon.swfName + '.swf')));
         if (!editing) atomicWrite(catalog, fs.readFileSync(path.join(folder, 'build/data_library_en.swf')));

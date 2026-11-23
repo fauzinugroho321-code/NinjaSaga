@@ -1,0 +1,64 @@
+{
+  "palette.gif": {
+    "width": 96,
+    "height": 96,
+    "delays": [
+      100,
+      100,
+      200
+    ],
+    "hashes": [
+      "ca3f43d6b85613b57e2ace65a379efe3f1d538bc28afdecb2da89520ae9e62a1",
+      "a293ca4297790a796a6c1e99235696ccc9d4df98b0239d013638ecf1688ea249",
+      "26d5118a9a9af50174af045bade5d249081ad71eb2505598c16d33eb79817016"
+    ]
+  },
+  "disposal-2.gif": {
+    "width": 48,
+    "height": 64,
+    "delays": [
+      40,
+      90,
+      170,
+      300
+    ],
+    "hashes": [
+      "de8778235ce8d7bdb2dcb01c723ff7087bee91e5f3a05551924867441ca70106",
+      "db962aadfc65fd9fb7b1de6385b4093b6400cd22fdf843d9439be9f39f781342",
+      "1c0e0d970c830eb3d595fc86390af4e54a0a0fa82c6b198a3551e3ba16b09423",
+      "e492fb6ab34169466c943f40ff75700a168b23d2e4712c4d410725e82b6037d7"
+    ]
+  },
+  "disposal-3.gif": {
+    "width": 48,
+    "height": 64,
+    "delays": [
+      40,
+      90,
+      170,
+      300
+    ],
+    "hashes": [
+      "de8778235ce8d7bdb2dcb01c723ff7087bee91e5f3a05551924867441ca70106",
+      "82704b9a9849d2af1fe3c49e0a465460c876d218f775010c8ae88e4c3384bc51",
+      "fb4ab698e3e2b263a234a97b138a22b27032417e191e0c8616e90bd465e17ae3",
+      "2c575d133ec3cfc3ac1351963f87d19736abd6acb3b616967dc5126b4e68b67c"
+    ]
+  },
+  "disposal-1.gif": {
+    "width": 48,
+    "height": 64,
+    "delays": [
+      40,
+      90,
+      170,
+      300
+    ],
+    "hashes": [
+      "de8778235ce8d7bdb2dcb01c723ff7087bee91e5f3a05551924867441ca70106",
+      "87f1776c3b0b25275071150b109eddc816eb4b2d128d8dd90e68e1ff7b9b5ee5",
+      "6f8720ad5232627ce6284de7656329b29633e067ac5718f41bfdc2a295e7e070",
+      "58d5110ac857fa792001735445a551c9643ee7892fcc10977dc65d87d9e60818"
+    ]
+  }
+}
